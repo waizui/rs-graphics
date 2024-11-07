@@ -97,4 +97,6 @@ flake.nix
 flake.lock
 default.nix
 
+Cargo.lock
+
 # Before adding new lines, see the comment at the top.
