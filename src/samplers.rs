@@ -1,18 +1,11 @@
-trait Sampler<Real> {
-    fn get1D() -> Real;
-    fn get2D() -> [Real; 2];
-}
+use crate::sobolmatrices::{SOBOL_DIMENSIONS, SOBOL_MATRICES32, SOBOL_MATRIX_SIZE};
 
-trait SobolSampler<Real> {}
-
-impl<T: SobolSampler<Real>, Real> Sampler<Real> for T {
-    fn get1D() -> Real {
-        todo!()
-    }
-
-    fn get2D() -> [Real; 2] {
-        todo!()
-    }
+pub trait Sampler<Real>
+where
+    Real: num_traits::Float,
+{
+    fn get1d(&self) -> Real;
+    fn get2d(&self) -> [Real; 2];
 }
 
 fn reverse_bit_32(mut n: u32) -> u32 {
@@ -25,7 +18,7 @@ fn reverse_bit_32(mut n: u32) -> u32 {
 }
 
 /// elements c are integers represent column of generator matrix
-fn mul_generator(c: &[u32], d: u32) -> u32 {
+fn mul_generator(c: &[u32], d: usize) -> u32 {
     let mut v = 0;
     let mut i = 0;
     let mut a = d;
@@ -38,4 +31,35 @@ fn mul_generator(c: &[u32], d: u32) -> u32 {
         i += 1;
     }
     v
+}
+
+pub struct SobolSampler {
+    a: usize,
+    dim: usize,
+}
+
+fn sobol_sample<Real>(a: usize, dim: usize) -> Real
+where
+    Real: num_traits::Float,
+{
+    assert!(dim < SOBOL_DIMENSIONS);
+    assert!(a < (1 << SOBOL_MATRIX_SIZE));
+    // not supporting 64bit yet
+    let v = mul_generator(&SOBOL_MATRICES32, dim);
+    todo!()
+}
+
+impl<Real> Sampler<Real> for SobolSampler
+where
+    Real: num_traits::Float,
+{
+    fn get1d(&self) -> Real {
+        sobol_sample::<Real>(self.a, self.dim)
+    }
+
+    fn get2d(&self) -> [Real; 2] {
+        let v1 = sobol_sample::<Real>(self.a, self.dim);
+        let v2 = sobol_sample::<Real>(self.a, self.dim + 1);
+        [v1, v2]
+    }
 }
