@@ -44,7 +44,7 @@ where
 {
     assert!(dim < SOBOL_DIMENSIONS);
     assert!(std::mem::size_of::<usize>() == 4 || a < (1 << SOBOL_MATRIX_SIZE));
-    let v = mul_generator(&SOBOL_MATRICES32, dim);
+    let v = mul_generator(&SOBOL_MATRICES32, dim * a);
     let f = (v as f32) * f32::from_bits(0x2f800000);
     Real::from(f).expect("can not convert sobol sample value")
 }
@@ -72,7 +72,6 @@ fn test_sobol_sample() {
         let v: f32 = s.get1d();
         let p: [f32; 2] = s.get2d();
         s.a += 1;
-        s.dim += 1;
         print!("{:.2} | ", v);
         println!("{:.2}-{:.2}", p[0], p[1]);
     }
