@@ -17,34 +17,29 @@ fn reverse_bit_32(mut n: u32) -> u32 {
     n
 }
 
-/// elements c are integers represent column of generator matrix
-fn mul_generator(c: &[u32], d: usize) -> u32 {
-    let mut v = 0;
-    let mut i = 0;
-    let mut a = d;
-    while a != 0 {
-        if a & 1 == 1 {
-            v ^= c[i];
-        }
-
-        a >>= 1;
-        i += 1;
-    }
-    v
-}
-
 pub struct SobolSampler {
     a: usize,
     dim: usize,
 }
 
-fn sobol_sample<Real>(a: usize, dim: usize) -> Real
+fn sobol_sample<Real>(mut a: usize, dim: usize) -> Real
 where
     Real: num_traits::Float,
 {
     assert!(dim < SOBOL_DIMENSIONS);
     assert!(std::mem::size_of::<usize>() == 4 || a < (1 << SOBOL_MATRIX_SIZE));
-    let v = mul_generator(&SOBOL_MATRICES32, dim * a);
+
+    let mut v = 0;
+    let mut i = dim * SOBOL_MATRIX_SIZE;
+    while a != 0 {
+        if a & 1 == 1 {
+            v ^= SOBOL_MATRICES32[i];
+        }
+
+        a >>= 1;
+        i += 1;
+    }
+
     let f = (v as f32) * f32::from_bits(0x2f800000);
     Real::from(f).expect("can not convert sobol sample value")
 }
@@ -68,11 +63,15 @@ where
 fn test_sobol_sample() {
     let mut s = SobolSampler { a: 1, dim: 1 };
 
-    for i in 0..10 {
-        let v: f32 = s.get1d();
-        let p: [f32; 2] = s.get2d();
-        s.a += 1;
-        print!("{:.2} | ", v);
-        println!("{:.2}-{:.2}", p[0], p[1]);
+    for d in 0..4 {
+        println!("---------------------------------------------");
+        s.dim = d;
+        for i in 0..16 {
+            let v: f32 = s.get1d();
+            let p: [f32; 2] = s.get2d();
+            s.a += 1;
+            print!("{:.2} | ", v);
+            println!("{:.2}-{:.2}", p[0], p[1]);
+        }
     }
 }
