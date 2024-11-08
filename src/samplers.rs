@@ -17,6 +17,21 @@ fn reverse_bit_32(mut n: u32) -> u32 {
     n
 }
 
+pub struct HaltonSampler {}
+
+impl<Real> Sampler<Real> for HaltonSampler
+where
+    Real: num_traits::Float,
+{
+    fn get1d(&self) -> Real {
+        todo!()
+    }
+
+    fn get2d(&self) -> [Real; 2] {
+        todo!()
+    }
+}
+
 pub struct SobolSampler {
     a: usize,
     dim: usize,
