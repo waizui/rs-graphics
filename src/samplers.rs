@@ -43,10 +43,10 @@ where
     Real: num_traits::Float,
 {
     assert!(dim < SOBOL_DIMENSIONS);
-    assert!(a < (1 << SOBOL_MATRIX_SIZE));
-    // not supporting 64bit yet
+    assert!(std::mem::size_of::<usize>() == 4 || a < (1 << SOBOL_MATRIX_SIZE));
     let v = mul_generator(&SOBOL_MATRICES32, dim);
-    todo!()
+    let f = (v as f32) * f32::from_bits(0x2f800000);
+    Real::from(f).expect("can not convert sobol sample value")
 }
 
 impl<Real> Sampler<Real> for SobolSampler
@@ -61,5 +61,19 @@ where
         let v1 = sobol_sample::<Real>(self.a, self.dim);
         let v2 = sobol_sample::<Real>(self.a, self.dim + 1);
         [v1, v2]
+    }
+}
+
+#[test]
+fn test_sobol_sample() {
+    let mut s = SobolSampler { a: 1, dim: 1 };
+
+    for i in 0..10 {
+        let v: f32 = s.get1d();
+        let p: [f32; 2] = s.get2d();
+        s.a += 1;
+        s.dim += 1;
+        print!("{:.2} | ", v);
+        println!("{:.2}-{:.2}", p[0], p[1]);
     }
 }
