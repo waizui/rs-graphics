@@ -1,5 +1,3 @@
-use std::ops::MulAssign;
-
 use crate::{
     primes::{PRIMES, PRIME_TABLE_SIZE},
     sobolmatrices::{SOBOL_DIMENSIONS, SOBOL_MATRICES32, SOBOL_MATRIX_SIZE},
@@ -30,9 +28,9 @@ pub struct SobolSampler {
     dim: usize,
 }
 
-pub fn radical_inverse<Real>(base_index: usize, mut a: usize) -> Real
+pub fn radical_inverse<Real>(mut a: usize, base_index: usize) -> Real
 where
-    Real: num_traits::Float + MulAssign,
+    Real: num_traits::Float,
 {
     assert!(base_index < PRIME_TABLE_SIZE);
     let base = PRIMES[base_index] as usize;
@@ -45,7 +43,7 @@ where
         // least significant digit
         let digit: usize = a - next * base;
         rev_digits = rev_digits * base + digit;
-        inv_base_m *= inv_base;
+        inv_base_m = inv_base_m * inv_base;
         a = next;
     }
     // can be expressed as (d_1*b^(m-1) + d_2*b^(m-2) ... + d_m*b^0 )/b^(m)
@@ -86,10 +84,10 @@ where
 
 impl<Real> Sampler<Real> for HaltonSampler
 where
-    Real: num_traits::Float + MulAssign,
+    Real: num_traits::Float,
 {
     fn get1d(&self) -> Real {
-        radical_inverse(self.dim, self.a)
+        radical_inverse(self.a, self.dim)
     }
 
     fn get2d(&self) -> [Real; 2] {
