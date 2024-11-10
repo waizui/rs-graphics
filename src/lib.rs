@@ -1,3 +1,4 @@
 mod pfm_util;
-mod sobolmatrices;
+mod primes;
 pub mod samplers;
+mod sobolmatrices;
