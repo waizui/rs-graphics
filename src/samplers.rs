@@ -1,14 +1,13 @@
 use std::ops::MulAssign;
 
 use crate::{
-    primes::PRIMES,
+    primes::{PRIMES, PRIME_TABLE_SIZE},
     sobolmatrices::{SOBOL_DIMENSIONS, SOBOL_MATRICES32, SOBOL_MATRIX_SIZE},
 };
 
 // largest float number less than 1
 #[cfg(target_pointer_width = "64")]
 const ONE_MINUS_EPSILON: f64 = 1.0 - f64::EPSILON;
-
 #[cfg(target_pointer_width = "32")]
 const ONE_MINUS_EPSILON: f32 = 1.0 - f32::EPSILON;
 
@@ -18,27 +17,24 @@ where
 {
     fn get1d(&self) -> Real;
     fn get2d(&self) -> [Real; 2];
+    //TODO:Randomizer
 }
 
-pub struct HaltonSampler {}
+pub struct HaltonSampler {
+    a: usize,
+    dim: usize,
+}
 
-impl<Real> Sampler<Real> for HaltonSampler
-where
-    Real: num_traits::Float,
-{
-    fn get1d(&self) -> Real {
-        todo!()
-    }
-
-    fn get2d(&self) -> [Real; 2] {
-        todo!()
-    }
+pub struct SobolSampler {
+    a: usize,
+    dim: usize,
 }
 
 pub fn radical_inverse<Real>(base_index: usize, mut a: usize) -> Real
 where
-    Real: num_traits::Float + Ord + MulAssign,
+    Real: num_traits::Float + MulAssign,
 {
+    assert!(base_index < PRIME_TABLE_SIZE);
     let base = PRIMES[base_index] as usize;
     let inv_base = (Real::one()) / (Real::from(base).unwrap());
     let mut inv_base_m = Real::one();
@@ -54,7 +50,7 @@ where
     }
     // can be expressed as (d_1*b^(m-1) + d_2*b^(m-2) ... + d_m*b^0 )/b^(m)
     let inv = Real::from(rev_digits).unwrap() * inv_base_m;
-    std::cmp::min(inv, Real::from(ONE_MINUS_EPSILON).unwrap())
+    Real::min(inv, Real::from(ONE_MINUS_EPSILON).unwrap())
 }
 
 pub fn reverse_bit_32(mut n: u32) -> u32 {
@@ -64,11 +60,6 @@ pub fn reverse_bit_32(mut n: u32) -> u32 {
     n = ((n & 0x33333333) << 2) | ((n & 0xcccccccc) >> 2);
     n = ((n & 0x55555555) << 1) | ((n & 0xaaaaaaaa) >> 1);
     n
-}
-
-pub struct SobolSampler {
-    a: usize,
-    dim: usize,
 }
 
 pub fn sobol_sample<Real>(mut a: usize, dim: usize) -> Real
@@ -93,18 +84,49 @@ where
     Real::from(f).expect("can not convert sobol sample value")
 }
 
+impl<Real> Sampler<Real> for HaltonSampler
+where
+    Real: num_traits::Float + MulAssign,
+{
+    fn get1d(&self) -> Real {
+        radical_inverse(self.dim, self.a)
+    }
+
+    fn get2d(&self) -> [Real; 2] {
+        let v1 = radical_inverse(self.a, self.dim);
+        let v2 = radical_inverse(self.a, self.dim + 1);
+        [v1, v2]
+    }
+}
+
 impl<Real> Sampler<Real> for SobolSampler
 where
     Real: num_traits::Float,
 {
     fn get1d(&self) -> Real {
-        sobol_sample::<Real>(self.a, self.dim)
+        sobol_sample(self.a, self.dim)
     }
 
     fn get2d(&self) -> [Real; 2] {
-        let v1 = sobol_sample::<Real>(self.a, self.dim);
-        let v2 = sobol_sample::<Real>(self.a, self.dim + 1);
+        let v1 = sobol_sample(self.a, self.dim);
+        let v2 = sobol_sample(self.a, self.dim + 1);
         [v1, v2]
+    }
+}
+
+#[test]
+fn test_halton_sample() {
+    let mut s = HaltonSampler { a: 1, dim: 1 };
+    for d in 0..4 {
+        println!("---------------------------------------------");
+        s.dim = d;
+        for i in 0..16 {
+            let v: f32 = s.get1d();
+            let p: [f32; 2] = s.get2d();
+            s.a += 1;
+            print!("{:.2} | ", v);
+            println!("{:.2}-{:.2}", p[0], p[1]);
+        }
     }
 }
 
