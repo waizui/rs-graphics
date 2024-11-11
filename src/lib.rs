@@ -1,4 +1,6 @@
+pub mod haltonsampler;
 mod pfm_util;
-mod primes;
-pub mod samplers;
+pub mod primes;
+pub mod sampler;
 mod sobolmatrices;
+pub mod sobolsampler;
