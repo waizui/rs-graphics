@@ -30,6 +30,8 @@ where
 
     let mut v = 0;
     let mut i = dim * SOBOL_MATRIX_SIZE;
+    // can be expressed as: v = d_1(a)*c_1 + d_2(a)*c_2 ...d_32(a)*c_32, where d_i(a) is the i-th digit of a,
+    // c_i represents column of generator matrix.
     while a != 0 {
         if a & 1 == 1 {
             v ^= SOBOL_MATRICES32[i];
@@ -39,6 +41,7 @@ where
         i += 1;
     }
 
+    // 0x2f800000 = 1^-32f
     let f = (v as f32) * f32::from_bits(0x2f800000);
     Real::from(f).expect("can not convert sobol sample value")
 }
