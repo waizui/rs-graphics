@@ -10,5 +10,4 @@ where
 {
     fn get1d(&self) -> Real;
     fn get2d(&self) -> [Real; 2];
-    //TODO:Randomizer
 }

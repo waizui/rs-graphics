@@ -2,8 +2,8 @@ use crate::primes::{PRIMES, PRIME_TABLE_SIZE};
 use crate::sampler::{Sampler, ONE_MINUS_EPSILON};
 
 pub struct HaltonSampler {
-    a: usize,
-    dim: usize,
+    pub a: usize,
+    pub dim: usize,
 }
 
 impl<Real> Sampler<Real> for HaltonSampler

@@ -2,8 +2,8 @@ use crate::sampler::Sampler;
 use crate::sobolmatrices::{SOBOL_DIMENSIONS, SOBOL_MATRICES32, SOBOL_MATRIX_SIZE};
 
 pub struct SobolSampler {
-    a: usize,
-    dim: usize,
+    pub a: usize,
+    pub dim: usize,
 }
 
 impl<Real> Sampler<Real> for SobolSampler
