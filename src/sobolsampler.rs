@@ -34,6 +34,7 @@ where
     // c_i represents column of generator matrix.
     while a != 0 {
         if a & 1 == 1 {
+            // bitwise add
             v ^= SOBOL_MATRICES32[i];
         }
 
