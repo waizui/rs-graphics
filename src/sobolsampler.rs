@@ -32,6 +32,7 @@ where
     let mut i = dim * SOBOL_MATRIX_SIZE;
     // can be expressed as: v = d_1(a)*c_1 + d_2(a)*c_2 ...d_32(a)*c_32, where d_i(a) is the i-th digit of a,
     // c_i represents column of generator matrix.
+    // eg. 4 = 100, matrix = [4,2,1] => [4,2,1][0,0,1]^t = 001
     while a != 0 {
         if a & 1 == 1 {
             // bitwise add
