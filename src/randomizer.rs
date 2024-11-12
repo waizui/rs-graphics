@@ -55,7 +55,7 @@ impl DigitPermutation {
 
 /// hash function from: https://graphics.pixar.com/library/MultiJitteredSampling/paper.pdf, Andrew Kensler
 /// i is value, l is base , p is seed
-pub fn permutation_elements(mut i: u32, mut l: u32, p: u32) -> i32 {
+pub fn permutation_elements(mut i: u32, l: u32, p: u32) -> i32 {
     // we want a num in range [0,l-1]
     let mut w = l - 1;
     // filling 1 to the right higest 1, efficient:  00100100 -> 00111111
@@ -93,7 +93,78 @@ pub fn permutation_elements(mut i: u32, mut l: u32, p: u32) -> i32 {
     ((i + p) % l) as i32
 }
 
-fn hash(mut v: u32, mut i: u32, p: u32) -> u32 {
-    //TODO:impl
-    todo!()
+// hash three values
+fn hash(v1: u32, v2: u32, v3: u32) -> u32 {
+    let mut buf = [0u8; 12];
+    let mut i: usize = 0;
+    for v in [v1, v2, v3] {
+        buf[i] = (v >> 24) as u8;
+        buf[i + 1] = (v >> 16) as u8;
+        buf[i + 2] = (v >> 8) as u8;
+        buf[i + 3] = v as u8;
+        i += 4;
+    }
+
+    murmur_hash_64a(&buf, 0) as u32
+}
+
+// https://github.com/explosion/murmurhash/blob/master/murmurhash/MurmurHash2.cpp
+pub fn murmur_hash_64a(key: &[u8], seed: u64) -> u64 {
+    const M: u64 = 0xc6a4a7935bd1e995;
+    const R: i32 = 47;
+
+    let len = key.len();
+    let mut h = seed ^ (len as u64).wrapping_mul(M);
+
+    // chunks of 8 bytes
+    for chunk in 0..len / 8 {
+        let offset = chunk * 8;
+        // compose k from 8 bytes
+        let mut k = u64::from(key[offset])
+            | (u64::from(key[offset + 1]) << 8)
+            | (u64::from(key[offset + 2]) << 16)
+            | (u64::from(key[offset + 3]) << 24)
+            | (u64::from(key[offset + 4]) << 32)
+            | (u64::from(key[offset + 5]) << 40)
+            | (u64::from(key[offset + 6]) << 48)
+            | (u64::from(key[offset + 7]) << 56);
+
+        k = k.wrapping_mul(M);
+        k ^= k >> R;
+        k = k.wrapping_mul(M);
+
+        h ^= k;
+        h = h.wrapping_mul(M);
+    }
+
+    // remaining bits
+    let r = len & 7;
+    if r > 0 {
+        let offset = len - r;
+        match r {
+            7 => h ^= u64::from(key[offset + 6]) << 48,
+            6 => h ^= u64::from(key[offset + 5]) << 40,
+            5 => h ^= u64::from(key[offset + 4]) << 32,
+            4 => h ^= u64::from(key[offset + 3]) << 24,
+            3 => h ^= u64::from(key[offset + 2]) << 16,
+            2 => h ^= u64::from(key[offset + 1]) << 8,
+            1 => h ^= u64::from(key[offset]),
+            _ => unreachable!(),
+        }
+        h = h.wrapping_mul(M);
+    }
+
+    h ^= h >> R;
+    h = h.wrapping_mul(M);
+    h ^= h >> R;
+
+    h
+}
+
+#[test]
+fn test_murmur_hash() {
+    let test_data = b"this is a random text";
+    let seed = 0x12345678;
+    let hash = murmur_hash_64a(test_data, seed);
+    assert_ne!(hash, 0); // sanity check
 }
