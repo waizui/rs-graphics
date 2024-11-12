@@ -1,24 +1,55 @@
 use std::vec::Vec;
 
-pub struct Randomizer {
-    p: u32,
-    l: u32,
+pub struct DigitPermutation {
+    ndigits: u32,
+    base: u32,
     permutations: Vec<u16>,
 }
 
-impl Randomizer {
+impl DigitPermutation {
     pub fn new(base: u32, seed: u32) -> Self {
         // permutations storing u16
         assert!(base < 65536);
-        let mut ndigis = 0;
+        let mut ndigis: u32 = 0;
 
-        // TODO: calculate permutations
-
-        Randomizer {
-            p: seed,
-            l: base,
-            permutations: Vec::new(),
+        // number of digits needed for base
+        let inv_base = 1. / (base as f32);
+        let mut inv_base_m: f32 = 1.;
+        loop {
+            if 1. - ((base as f32) - 1.) * inv_base_m < 1. {
+                // is the least significant digit
+                break;
+            }
+            ndigis += 1;
+            inv_base_m *= inv_base;
         }
+        let size: usize = (ndigis * base) as usize;
+        let mut permutations: Vec<u16> = vec![0u16; size];
+        // compute random permutations for all digits
+        let mut d_i: u32 = 0;
+        while d_i < ndigis {
+            d_i += 1;
+            let dseed = hash(base, d_i, seed);
+            let mut d_v = 0;
+            while d_v < base {
+                let i = (d_i * base + d_v) as usize;
+                permutations[i] = permutation_elements(d_v, base, dseed) as u16;
+                d_v += 1;
+            }
+        }
+
+        DigitPermutation {
+            ndigits: ndigis,
+            base: base,
+            permutations,
+        }
+    }
+
+    pub fn permute(&self, digit_i: u32, digit_v: u32) -> i32 {
+        assert!(digit_i < self.ndigits);
+        assert!(digit_v < self.base);
+        let i = (digit_i * self.base + digit_v) as usize;
+        self.permutations[i].into()
     }
 }
 
@@ -60,4 +91,9 @@ pub fn permutation_elements(mut i: u32, mut l: u32, p: u32) -> i32 {
     }
 
     ((i + p) % l) as i32
+}
+
+fn hash(mut v: u32, mut i: u32, p: u32) -> u32 {
+    //TODO:impl
+    todo!()
 }
