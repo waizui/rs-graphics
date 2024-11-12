@@ -59,7 +59,7 @@ fn test_halton_sample() {
     for d in 0..4 {
         println!("---------------------------------------------");
         s.dim = d;
-        for i in 0..16 {
+        for _ in 0..16 {
             let v: f32 = s.get1d();
             let p: [f32; 2] = s.get2d();
             s.a += 1;
