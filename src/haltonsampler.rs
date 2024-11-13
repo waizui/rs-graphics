@@ -1,5 +1,3 @@
-use num_traits::real::Real;
-
 use crate::primes::{PRIMES, PRIME_TABLE_SIZE};
 use crate::randomizer::DigitPermutation;
 use crate::sampler::{RandomStrategy, Sampler, ONE_MINUS_EPSILON};
