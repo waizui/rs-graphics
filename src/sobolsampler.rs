@@ -2,23 +2,56 @@ use crate::sampler::{RandomStrategy, Sampler};
 use crate::sobolmatrices::{SOBOL_DIMENSIONS, SOBOL_MATRICES32, SOBOL_MATRIX_SIZE};
 
 pub struct SobolSampler {
-    pub a: usize,
-    pub dim: usize,
-    pub strategy: RandomStrategy,
+    index: usize,
+    dim: usize,
+    strategy: RandomStrategy,
 }
 
 impl<Real> Sampler<Real> for SobolSampler
 where
     Real: num_traits::Float,
 {
-    fn get1d(&self) -> Real {
-        sobol_sample(self.a, self.dim)
+    fn get1d(&mut self) -> Real {
+        let dim = self.dim;
+        self.dim += 1;
+        sobol_sample(self.index, dim)
     }
 
-    fn get2d(&self) -> [Real; 2] {
-        let v1 = sobol_sample(self.a, self.dim);
-        let v2 = sobol_sample(self.a, self.dim + 1);
+    fn get2d(&mut self) -> [Real; 2] {
+        let dim = self.dim;
+        self.dim += 2;
+        let v1 = sobol_sample(self.index, dim);
+        let v2 = sobol_sample(self.index, dim + 1);
         [v1, v2]
+    }
+}
+
+impl Default for SobolSampler {
+    fn default() -> Self {
+        SobolSampler {
+            index: 1,
+            dim: 0,
+            strategy: RandomStrategy::None,
+        }
+    }
+}
+
+impl SobolSampler {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn new_randomized(strategy: RandomStrategy) -> Self {
+        SobolSampler {
+            index: 1,
+            dim: 0,
+            strategy,
+        }
+    }
+
+    pub fn restore(&mut self) {
+        self.dim = 0;
+        self.index = 1;
     }
 }
 
@@ -51,21 +84,17 @@ where
 
 #[test]
 fn test_sobol_sample() {
-    let mut s = SobolSampler {
-        a: 1,
-        dim: 1,
-        strategy: RandomStrategy::PermuteDigits,
-    };
-
-    for d in 0..4 {
+    let mut s = SobolSampler::new();
+    for i in 0..4 {
+        s.index = i;
         println!("---------------------------------------------");
-        s.dim = d;
         for _ in 0..16 {
             let v: f32 = s.get1d();
             let p: [f32; 2] = s.get2d();
-            s.a += 1;
+            s.index += 2;
             print!("{:.2} | ", v);
             println!("{:.2}-{:.2}", p[0], p[1]);
         }
+        s.restore();
     }
 }

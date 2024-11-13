@@ -13,28 +13,39 @@ impl<Real> Sampler<Real> for HaltonSampler
 where
     Real: num_traits::Float,
 {
-    fn get1d(&self) -> Real {
-        self.sample_dimension(self.index, self.dim)
+    fn get1d(&mut self) -> Real {
+        let dim = self.dim;
+        self.dim += 1;
+        self.sample_dimension(self.index, dim)
     }
 
-    fn get2d(&self) -> [Real; 2] {
-        let v1 = self.sample_dimension(self.index, self.dim);
-        let v2 = self.sample_dimension(self.index, self.dim + 1);
+    fn get2d(&mut self) -> [Real; 2] {
+        let dim = self.dim;
+        self.dim += 2;
+        let v1 = self.sample_dimension(self.index, dim);
+        let v2 = self.sample_dimension(self.index, dim + 1);
         [v1, v2]
     }
 }
 
-impl HaltonSampler {
-    pub fn new(a: usize, dim: usize) -> Self {
+impl Default for HaltonSampler {
+    fn default() -> Self {
         HaltonSampler {
-            index: a,
-            dim,
+            index: 1,
+            dim: 0,
             strategy: RandomStrategy::None,
             permuters: None,
         }
     }
+}
 
-    pub fn new_randomized(a: usize, dim: usize, strategy: RandomStrategy) -> Self {
+impl HaltonSampler {
+    /// init
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn new_randomized(strategy: RandomStrategy) -> Self {
         match strategy {
             RandomStrategy::PermuteDigits => {
                 let mut perms = Vec::<DigitPermutation>::new();
@@ -43,14 +54,14 @@ impl HaltonSampler {
                 }
 
                 HaltonSampler {
-                    index: a,
-                    dim,
+                    index: 1,
+                    dim: 0,
                     strategy,
                     permuters: Some(perms),
                 }
             }
 
-            _ => HaltonSampler::new(a, dim),
+            _ => HaltonSampler::default(),
         }
     }
 
@@ -68,6 +79,11 @@ impl HaltonSampler {
             }
             _ => radical_inverse(a, dim),
         }
+    }
+
+    pub fn restore(&mut self) {
+        self.dim = 0;
+        self.index = 1;
     }
 }
 
@@ -125,10 +141,10 @@ where
 
 #[test]
 fn test_halton_sample() {
-    let mut s = HaltonSampler::new_randomized(1, 4, RandomStrategy::PermuteDigits);
-    for d in 0..4 {
+    let mut s = HaltonSampler::new_randomized(RandomStrategy::PermuteDigits);
+    for i in 1..5 {
         println!("---------------------------------------------");
-        s.dim = d;
+        s.index = i;
         for _ in 0..16 {
             let v: f32 = s.get1d();
             let p: [f32; 2] = s.get2d();
@@ -136,5 +152,6 @@ fn test_halton_sample() {
             print!("{:.2} | ", v);
             println!("{:.2}-{:.2}", p[0], p[1]);
         }
+        s.restore();
     }
 }

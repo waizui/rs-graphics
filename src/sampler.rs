@@ -8,8 +8,8 @@ pub trait Sampler<Real>
 where
     Real: num_traits::Float,
 {
-    fn get1d(&self) -> Real;
-    fn get2d(&self) -> [Real; 2];
+    fn get1d(&mut self) -> Real;
+    fn get2d(&mut self) -> [Real; 2];
 }
 
 pub enum RandomStrategy {

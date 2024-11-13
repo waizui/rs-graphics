@@ -1,6 +1,5 @@
 use std::vec::Vec;
 
-
 pub struct DigitPermutation {
     ndigits: i32,
     base: i32,
@@ -16,11 +15,7 @@ impl DigitPermutation {
         // number of digits needed for base
         let inv_base = 1. / (base as f32);
         let mut inv_base_m: f32 = 1.;
-        loop {
-            if 1. - ((base as f32) - 1.) * inv_base_m < 1. {
-                // is the least significant digit
-                break;
-            }
+        while 1. - ((base as f32) - 1.) * inv_base_m < 1. {
             ndigits += 1;
             inv_base_m *= inv_base;
         }
@@ -29,7 +24,6 @@ impl DigitPermutation {
         // compute random permutations for all digits
         let mut d_i: i32 = 0;
         while d_i < ndigits {
-            d_i += 1;
             let dseed = hash(base, d_i, seed);
             let mut d_v = 0;
             while d_v < base {
@@ -37,6 +31,7 @@ impl DigitPermutation {
                 permutations[i] = permutation_elements(d_v as u32, base as u32, dseed) as u16;
                 d_v += 1;
             }
+            d_i += 1;
         }
 
         DigitPermutation {
@@ -54,7 +49,7 @@ impl DigitPermutation {
     }
 }
 
-/// hash function from: https://graphics.pixar.com/library/MultiJitteredSampling/paper.pdf, Andrew Kensler
+///  https://graphics.pixar.com/library/MultiJitteredSampling/paper.pdf, Andrew Kensler
 /// i is value, l is base , p is seed
 pub fn permutation_elements(mut i: u32, l: u32, p: u32) -> i32 {
     // we want a num in range [0,l-1]
@@ -68,25 +63,25 @@ pub fn permutation_elements(mut i: u32, l: u32, p: u32) -> i32 {
 
     loop {
         i ^= p;
-        i *= 0xe170893d;
+        i = i.wrapping_mul(0xe170893d);
         i ^= p >> 16;
         i ^= (i & w) >> 4;
         i ^= p >> 8;
-        i *= 0x0929eb3f;
+        i = i.wrapping_mul(0x0929eb3f);
         i ^= p >> 23;
         i ^= (i & w) >> 1;
-        i *= 1 | p >> 27;
-        i *= 0x6935fa69;
+        i = i.wrapping_mul(1 | p >> 27);
+        i = i.wrapping_mul(0x6935fa69);
         i ^= (i & w) >> 11;
-        i *= 0x74dcb303;
+        i = i.wrapping_mul(0x74dcb303);
         i ^= (i & w) >> 2;
-        i *= 0x9e501cc3;
+        i = i.wrapping_mul(0x9e501cc3);
         i ^= (i & w) >> 2;
-        i *= 0xc860a3df;
+        i = i.wrapping_mul(0xc860a3df);
         i &= w;
         i ^= i >> 5;
 
-        if i >= l {
+        if i < l {
             break;
         }
     }
