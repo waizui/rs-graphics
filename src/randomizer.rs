@@ -1,16 +1,17 @@
 use std::vec::Vec;
 
+
 pub struct DigitPermutation {
-    ndigits: u32,
-    base: u32,
+    ndigits: i32,
+    base: i32,
     permutations: Vec<u16>,
 }
 
 impl DigitPermutation {
-    pub fn new(base: u32, seed: u32) -> Self {
+    pub fn new(base: i32, seed: i32) -> Self {
         // permutations storing u16
         assert!(base < 65536);
-        let mut ndigis: u32 = 0;
+        let mut ndigits: i32 = 0;
 
         // number of digits needed for base
         let inv_base = 1. / (base as f32);
@@ -20,32 +21,32 @@ impl DigitPermutation {
                 // is the least significant digit
                 break;
             }
-            ndigis += 1;
+            ndigits += 1;
             inv_base_m *= inv_base;
         }
-        let size: usize = (ndigis * base) as usize;
+        let size: usize = (ndigits * base) as usize;
         let mut permutations: Vec<u16> = vec![0u16; size];
         // compute random permutations for all digits
-        let mut d_i: u32 = 0;
-        while d_i < ndigis {
+        let mut d_i: i32 = 0;
+        while d_i < ndigits {
             d_i += 1;
             let dseed = hash(base, d_i, seed);
             let mut d_v = 0;
             while d_v < base {
                 let i = (d_i * base + d_v) as usize;
-                permutations[i] = permutation_elements(d_v, base, dseed) as u16;
+                permutations[i] = permutation_elements(d_v as u32, base as u32, dseed) as u16;
                 d_v += 1;
             }
         }
 
         DigitPermutation {
-            ndigits: ndigis,
-            base: base,
+            ndigits,
+            base,
             permutations,
         }
     }
 
-    pub fn permute(&self, digit_i: u32, digit_v: u32) -> i32 {
+    pub fn permute(&self, digit_i: i32, digit_v: i32) -> i32 {
         assert!(digit_i < self.ndigits);
         assert!(digit_v < self.base);
         let i = (digit_i * self.base + digit_v) as usize;
@@ -94,7 +95,7 @@ pub fn permutation_elements(mut i: u32, l: u32, p: u32) -> i32 {
 }
 
 // hash three values
-fn hash(v1: u32, v2: u32, v3: u32) -> u32 {
+fn hash(v1: i32, v2: i32, v3: i32) -> u32 {
     let mut buf = [0u8; 12];
     let mut i: usize = 0;
     for v in [v1, v2, v3] {

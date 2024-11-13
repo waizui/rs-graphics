@@ -1,9 +1,10 @@
-use crate::sampler::Sampler;
+use crate::sampler::{RandomStrategy, Sampler};
 use crate::sobolmatrices::{SOBOL_DIMENSIONS, SOBOL_MATRICES32, SOBOL_MATRIX_SIZE};
 
 pub struct SobolSampler {
     pub a: usize,
     pub dim: usize,
+    pub strategy: RandomStrategy,
 }
 
 impl<Real> Sampler<Real> for SobolSampler
@@ -50,7 +51,11 @@ where
 
 #[test]
 fn test_sobol_sample() {
-    let mut s = SobolSampler { a: 1, dim: 1 };
+    let mut s = SobolSampler {
+        a: 1,
+        dim: 1,
+        strategy: RandomStrategy::PermuteDigits,
+    };
 
     for d in 0..4 {
         println!("---------------------------------------------");
