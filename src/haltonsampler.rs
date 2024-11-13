@@ -1,3 +1,5 @@
+use num_traits::real::Real;
+
 use crate::primes::{PRIMES, PRIME_TABLE_SIZE};
 use crate::randomizer::DigitPermutation;
 use crate::sampler::{RandomStrategy, Sampler, ONE_MINUS_EPSILON};
@@ -120,12 +122,13 @@ where
 {
     assert!(base_index < PRIME_TABLE_SIZE);
     let base = PRIMES[base_index] as usize;
-    let inv_base = (Real::one()) / (Real::from(base).unwrap());
-    let mut inv_base_m = Real::one();
+    let one = Real::one();
+    let inv_base = one / (Real::from(base).unwrap());
+    let mut inv_base_m = one;
     //reversed digits:
     let mut rev_digits: usize = 0;
     let mut d_i = 0;
-    while Real::from(1 - (base - 1)).unwrap() * inv_base_m < Real::one() {
+    while one - Real::from(base as f32 - 1.).unwrap() * inv_base_m < one {
         let next: usize = a / base;
         // least significant digit
         let digit = (a - next * base) as i32;
