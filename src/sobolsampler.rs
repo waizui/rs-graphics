@@ -2,8 +2,8 @@ use crate::sampler::{RandomStrategy, Sampler};
 use crate::sobolmatrices::{SOBOL_DIMENSIONS, SOBOL_MATRICES32, SOBOL_MATRIX_SIZE};
 
 pub struct SobolSampler {
-    index: usize,
-    dim: usize,
+    pub index: usize,
+    pub dim: usize,
     strategy: RandomStrategy,
 }
 
