@@ -104,7 +104,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sobol-sampler"
+name = "rs-sampler"
 version = "0.1.0"
 dependencies = [
  "num-traits",

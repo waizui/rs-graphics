@@ -1,9 +1,7 @@
-use rand::{rngs::StdRng, Rng};
 use std::fs::File;
 use std::io::{Error, Write};
 use std::vec;
-
-use sobol_sampler::{self, sampler::Sampler, sobolsampler::SobolSampler};
+use rs_sampler::{self, sampler::Sampler, sobolsampler::SobolSampler};
 
 #[derive(Default)]
 struct CSVEntery {
