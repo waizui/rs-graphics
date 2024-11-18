@@ -4,7 +4,7 @@ use crate::sampler::{RandomStrategy, Sampler, ONE_MINUS_EPSILON};
 
 pub struct HaltonSampler {
     pub index: usize,
-    dim: usize,
+    pub dim: usize,
     strategy: RandomStrategy,
     permuters: Option<Vec<DigitPermutation>>,
 }
@@ -13,6 +13,19 @@ impl<Real> Sampler<Real> for HaltonSampler
 where
     Real: num_traits::Float,
 {
+    fn restore(&mut self) {
+        self.dim = 0;
+        self.index = 1;
+    }
+
+    fn set_i(&mut self, i: usize) {
+        self.index = i;
+    }
+
+    fn set_dim(&mut self, dim: usize) {
+        self.dim = dim;
+    }
+
     fn get1d(&mut self) -> Real {
         let dim = self.dim;
         self.dim += 1;
@@ -80,11 +93,6 @@ impl HaltonSampler {
             _ => radical_inverse(a, dim),
         }
     }
-
-    pub fn restore(&mut self) {
-        self.dim = 0;
-        self.index = 1;
-    }
 }
 
 pub fn radical_inverse<Real>(mut a: usize, base_index: usize) -> Real
@@ -140,19 +148,3 @@ where
     Real::min(inv, Real::from(ONE_MINUS_EPSILON).unwrap())
 }
 
-#[test]
-fn test_halton_sample() {
-    let mut s = HaltonSampler::new_randomized(RandomStrategy::PermuteDigits);
-    for i in 1..5 {
-        println!("---------------------------------------------");
-        s.index = i;
-        for _ in 0..16 {
-            let v: f32 = s.get1d();
-            let p: [f32; 2] = s.get2d();
-            s.index += 1;
-            print!("{:.2} | ", v);
-            println!("{:.2}-{:.2}", p[0], p[1]);
-        }
-        s.restore();
-    }
-}

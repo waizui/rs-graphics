@@ -1,13 +1,14 @@
+use rs_sampler::{
+    self, haltonsampler::HaltonSampler, sampler::RandomStrategy, sampler::Sampler,
+    sobolsampler::SobolSampler,
+};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Error, Write};
-use std::vec;
-use rs_sampler::{self, sampler::Sampler, sobolsampler::SobolSampler};
 
 #[derive(Default)]
 struct CSVEntery {
-    r: usize,
-    c: usize,
-    val: usize,
+    val: String,
 }
 
 impl Clone for CSVEntery {
@@ -16,21 +17,22 @@ impl Clone for CSVEntery {
     }
 }
 
-fn export_csv(path: &str, mut a: &[CSVEntery]) -> Result<(), Error> {
+fn export_csv(
+    path: &str,
+    rows: usize,
+    cols: usize,
+    a: &HashMap<usize, CSVEntery>,
+) -> Result<(), Error> {
     let mut file = File::create(path)?;
-
-    let rows = (a.len() as f32).sqrt() as usize;
-
-    for r in 0..rows {
-        for i in 0..rows {
-            let e = &a[r * rows + i];
-            if e.val != 0 {
+    for rol in 0..rows {
+        for col in 0..cols {
+            let cell_i = rol * cols + col;
+            if let Some(e) = a.get(&cell_i) {
                 let _ = file.write(format!("{},", e.val).as_bytes());
             } else {
-                let _ = file.write(b"0,");
+                let _ = file.write(b",");
             }
         }
-
         let _ = file.write(b"\n");
     }
 
@@ -38,47 +40,82 @@ fn export_csv(path: &str, mut a: &[CSVEntery]) -> Result<(), Error> {
     Ok(())
 }
 
+fn gen_samples<T>(s: &mut T, map: &mut HashMap<usize, CSVEntery>) -> (usize, usize)
+where
+    T: Sampler<f32>,
+{
+    let cols = 4;
+    let indices = 64;
+
+    // 1st dimension
+    for c in 0..indices {
+        s.set_i(c);
+        s.set_dim(0);
+        let v: [f32; 2] = s.get2d();
+
+        map.insert(
+            c * cols,
+            CSVEntery {
+                val: v[0].to_string(),
+            },
+        );
+        map.insert(
+            c * cols + 1,
+            CSVEntery {
+                val: v[1].to_string(),
+            },
+        );
+        s.restore();
+    }
+
+    s.restore();
+
+    // higher dimension
+    for c in 0..indices {
+        s.set_i(c);
+        s.set_dim(63);
+        let v: [f32; 2] = s.get2d();
+
+        map.insert(
+            c * cols + 2,
+            CSVEntery {
+                val: v[0].to_string(),
+            },
+        );
+        map.insert(
+            c * cols + 3,
+            CSVEntery {
+                val: v[1].to_string(),
+            },
+        );
+        s.restore();
+    }
+
+    (cols, indices)
+}
+
 #[test]
-fn test_sobolsampler() {
+fn test_one_dim_sobol_sampler() {
     let mut s = SobolSampler::new();
-    let rows = 16;
-    let c_i = rows * rows;
+    let mut enteries: HashMap<usize, CSVEntery> = HashMap::new();
+    let (cols, _indeces) = gen_samples(&mut s, &mut enteries);
+    let _ = export_csv(
+        "target/sobol_test.csv",
+        enteries.len() / cols,
+        cols,
+        &enteries,
+    );
+}
 
-    let mut enteries = vec![CSVEntery::default(); c_i];
-    // let rand = StdRng::seed_from_u64(1u64).gen_range(0..c_i);
-    for i in 0..c_i {
-        s.index = i;
-        let v: [f32; 2] = s.get2d();
-
-        let r: usize = (v[0] * (rows as f32)).floor() as usize;
-        let c: usize = (v[1] * (rows as f32)).floor() as usize;
-        let cell_i = r * rows + c;
-        enteries[cell_i].r = r;
-        enteries[cell_i].c = c;
-        enteries[cell_i].val += 1;
-        s.restore();
-    }
-
-    let _ = export_csv("target/one_dim_sobol_test.csv", &enteries[0..]);
-
-    let mut s = SobolSampler::new();
-    let mut enteries = vec![CSVEntery::default(); c_i];
-    // let rand = StdRng::seed_from_u64(1u64).gen_range(0..c_i);
-    for i in 0..c_i {
-        s.index = i;
-        s.dim = 64;
-        let v: [f32; 2] = s.get2d();
-
-        let r: usize = (v[0] * (rows as f32)).floor() as usize;
-        let c: usize = (v[1] * (rows as f32)).floor() as usize;
-        let cell_i = r * rows + c;
-        enteries[cell_i].r = r;
-        enteries[cell_i].c = c;
-        enteries[cell_i].val += 1;
-        s.restore();
-        // let entery = CSVEntery {};
-        // enteries.push(entery);
-    }
-
-    let _ = export_csv("target/mul_dim_sobol_test.csv", &enteries[0..]);
+#[test]
+fn test_halton_sampler() {
+    let mut s = HaltonSampler::new_randomized(RandomStrategy::PermuteDigits);
+    let mut enteries: HashMap<usize, CSVEntery> = HashMap::new();
+    let (cols, _indeces) = gen_samples(&mut s, &mut enteries);
+    let _ = export_csv(
+        "target/halton_test.csv",
+        enteries.len() / cols,
+        cols,
+        &enteries,
+    );
 }
