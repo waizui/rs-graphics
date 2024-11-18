@@ -28,7 +28,8 @@ impl DigitPermutation {
             let mut d_v = 0;
             while d_v < base {
                 let i = (d_i * base + d_v) as usize;
-                permutations[i] = permutation_elements(d_v as u32, base as u32, dseed) as u16;
+                permutations[i] =
+                    permutation_elements(d_v as u32, base as u32, dseed as u32) as u16;
                 d_v += 1;
             }
             d_i += 1;
@@ -70,7 +71,7 @@ pub fn permutation_elements(mut i: u32, l: u32, p: u32) -> i32 {
         i = i.wrapping_mul(0x0929eb3f);
         i ^= p >> 23;
         i ^= (i & w) >> 1;
-        i = i.wrapping_mul(1 | p >> 27);
+        i = i.wrapping_mul(1 | (p >> 27));
         i = i.wrapping_mul(0x6935fa69);
         i ^= (i & w) >> 11;
         i = i.wrapping_mul(0x74dcb303);
@@ -90,7 +91,7 @@ pub fn permutation_elements(mut i: u32, l: u32, p: u32) -> i32 {
 }
 
 // hash three values
-fn hash(v1: i32, v2: i32, v3: i32) -> u32 {
+pub fn hash(v1: i32, v2: i32, v3: i32) -> u64 {
     let mut buf = [0u8; 12];
     let mut i: usize = 0;
     for v in [v1, v2, v3] {
@@ -101,7 +102,7 @@ fn hash(v1: i32, v2: i32, v3: i32) -> u32 {
         i += 4;
     }
 
-    murmur_hash_64a(&buf, 0) as u32
+    murmur_hash_64a(&buf, 0)
 }
 
 // https://github.com/explosion/murmurhash/blob/master/murmurhash/MurmurHash2.cpp

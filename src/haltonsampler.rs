@@ -1,3 +1,5 @@
+use core::panic;
+
 use crate::primes::{PRIMES, PRIME_TABLE_SIZE};
 use crate::randomizer::DigitPermutation;
 use crate::sampler::{RandomStrategy, Sampler, ONE_MINUS_EPSILON};
@@ -87,7 +89,7 @@ impl HaltonSampler {
                 if let Some(r) = &self.permuters {
                     scramble_radical_inverse(a, dim, &r[dim])
                 } else {
-                    todo!()
+                    panic!("no permuters provided")
                 }
             }
             _ => radical_inverse(a, dim),
@@ -147,4 +149,3 @@ where
     let inv = Real::from(rev_digits).unwrap() * inv_base_m;
     Real::min(inv, Real::from(ONE_MINUS_EPSILON).unwrap())
 }
-

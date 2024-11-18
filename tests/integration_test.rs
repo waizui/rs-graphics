@@ -95,7 +95,7 @@ where
 }
 
 #[test]
-fn test_one_dim_sobol_sampler() {
+fn test_sobol_sampler() {
     let mut s = SobolSampler::new();
     let mut enteries: HashMap<usize, CSVEntery> = HashMap::new();
     let (cols, _indeces) = gen_samples(&mut s, &mut enteries);
