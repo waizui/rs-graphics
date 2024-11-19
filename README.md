@@ -8,7 +8,7 @@
 
 ![sobol](./docs/sobol_256.png)
 
-### Elapsed time of generating 128x256 samples on Rayzen9 6900HX.
+### Elapsed time of generating 128x256 samples on Ryzen9 6900HX.
 
 ![sobol](./docs/sobol_perf.png)
 
@@ -19,6 +19,6 @@
 
 ![halton](./docs/halton_256.png)
 
-### Elapsed time of generating 128x256 samples on Rayzen9 6900HX.
+### Elapsed time of generating 128x256 samples on Ryzen9 6900HX.
 
 ![halton](./docs/halton_perf.png)
