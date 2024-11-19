@@ -46,7 +46,7 @@ where
     T: Sampler<f32>,
 {
     let cols = 4;
-    let indices = 64;
+    let indices = 256;
 
     // 1st dimension
     for c in 0..indices {
