@@ -5,6 +5,7 @@ use rs_sampler::{
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Error, Write};
+use std::time::Instant;
 
 #[derive(Default)]
 struct CSVEntery {
@@ -96,7 +97,7 @@ where
 
 #[test]
 fn test_sobol_sampler() {
-    let mut s = SobolSampler::new();
+    let mut s = SobolSampler::new_randomized(RandomStrategy::PermuteDigits);
     let mut enteries: HashMap<usize, CSVEntery> = HashMap::new();
     let (cols, _indeces) = gen_samples(&mut s, &mut enteries);
     let _ = export_csv(
@@ -118,4 +119,35 @@ fn test_halton_sampler() {
         cols,
         &enteries,
     );
+}
+
+fn perf_samples<T>(s: &mut T, loops: usize, count: usize, id: &str)
+where
+    T: Sampler<f32>,
+{
+    let start = Instant::now();
+
+    for _ in 0..loops {
+        for c in 0..count {
+            s.set_i(c);
+            let v: [f32; 2] = s.get2d();
+            let _ = drop(v);
+        }
+        s.restore();
+    }
+
+    let elapsed = start.elapsed().as_millis();
+    println!("{} perf:{} ms", id, elapsed);
+}
+
+#[test]
+fn test_halton_perf() {
+    let mut s = HaltonSampler::new_randomized(RandomStrategy::PermuteDigits);
+    perf_samples(&mut s, 128, 256, "halton");
+}
+
+#[test]
+fn test_sobol_perf() {
+    let mut s = SobolSampler::new_randomized(RandomStrategy::PermuteDigits);
+    perf_samples(&mut s, 128, 256, "sobol");
 }
