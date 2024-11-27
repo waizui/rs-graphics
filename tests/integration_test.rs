@@ -50,8 +50,8 @@ where
 
     // 1st dimension
     for c in 0..indices {
-        s.set_i(c);
         s.set_dim(0);
+        s.set_i(c);
         let v: [f32; 2] = s.get2d();
 
         map.insert(
@@ -66,15 +66,14 @@ where
                 val: v[1].to_string(),
             },
         );
-        s.restore();
     }
 
     s.restore();
 
-    // higher dimension
+    //higher dimension
     for c in 0..indices {
-        s.set_i(c);
         s.set_dim(63);
+        s.set_i(c);
         let v: [f32; 2] = s.get2d();
 
         map.insert(
@@ -89,36 +88,9 @@ where
                 val: v[1].to_string(),
             },
         );
-        s.restore();
     }
 
     (cols, indices)
-}
-
-#[test]
-fn test_sobol_sampler() {
-    let mut s = SobolSampler::new_randomized(RandomStrategy::PermuteDigits);
-    let mut enteries: HashMap<usize, CSVEntery> = HashMap::new();
-    let (cols, _indeces) = gen_samples(&mut s, &mut enteries);
-    let _ = export_csv(
-        "target/sobol_test.csv",
-        enteries.len() / cols,
-        cols,
-        &enteries,
-    );
-}
-
-#[test]
-fn test_halton_sampler() {
-    let mut s = HaltonSampler::new_randomized(RandomStrategy::PermuteDigits);
-    let mut enteries: HashMap<usize, CSVEntery> = HashMap::new();
-    let (cols, _indeces) = gen_samples(&mut s, &mut enteries);
-    let _ = export_csv(
-        "target/halton_test.csv",
-        enteries.len() / cols,
-        cols,
-        &enteries,
-    );
 }
 
 fn perf_samples<T>(s: &mut T, loops: usize, count: usize, id: &str)
@@ -141,6 +113,52 @@ where
 }
 
 #[test]
+fn test_sobol_sampler() {
+    let mut s = SobolSampler::new_randomized(RandomStrategy::None);
+    let mut enteries: HashMap<usize, CSVEntery> = HashMap::new();
+    let (cols, _indeces) = gen_samples(&mut s, &mut enteries);
+    let _ = export_csv(
+        "target/sobol_test_norandom.csv",
+        enteries.len() / cols,
+        cols,
+        &enteries,
+    );
+
+    let mut s = SobolSampler::new_randomized(RandomStrategy::PermuteDigits);
+    enteries.clear();
+    let (cols, _indeces) = gen_samples(&mut s, &mut enteries);
+    let _ = export_csv(
+        "target/sobol_test_permute.csv",
+        enteries.len() / cols,
+        cols,
+        &enteries,
+    );
+}
+
+#[test]
+fn test_halton_sampler() {
+    let mut s = HaltonSampler::new_randomized(RandomStrategy::None);
+    let mut enteries: HashMap<usize, CSVEntery> = HashMap::new();
+    let (cols, _indeces) = gen_samples(&mut s, &mut enteries);
+    let _ = export_csv(
+        "target/halton_test_norandom.csv",
+        enteries.len() / cols,
+        cols,
+        &enteries,
+    );
+
+    let mut s = HaltonSampler::new_randomized(RandomStrategy::PermuteDigits);
+    enteries.clear();
+    let (cols, _indeces) = gen_samples(&mut s, &mut enteries);
+    let _ = export_csv(
+        "target/halton_test_permute.csv",
+        enteries.len() / cols,
+        cols,
+        &enteries,
+    );
+}
+
+#[test]
 fn test_halton_perf() {
     let mut s = HaltonSampler::new_randomized(RandomStrategy::PermuteDigits);
     perf_samples(&mut s, 128, 256, "halton");
@@ -148,6 +166,6 @@ fn test_halton_perf() {
 
 #[test]
 fn test_sobol_perf() {
-    let mut s = SobolSampler::new_randomized(RandomStrategy::PermuteDigits);
+    let mut s = SobolSampler::new_randomized(RandomStrategy::None);
     perf_samples(&mut s, 128, 256, "sobol");
 }

@@ -1,24 +1,19 @@
 # rs-sampler
 
-
+**256 Sampling resuts of samplers, lower dimension = 1st dimension, higher dimension = 64th dimension.**
 
 ## Sobol sampler
 
-### 2d samples distribution, lower dimension samples start from 1st dimension, higher dimension samples start from 64th dimension.
+**No randomization**
+![sobol](./docs/sobol_256_norandom.png)
 
-![sobol](./docs/sobol_256.png)
-
-### Elapsed time of generating 128x256 samples on Ryzen9 6900HX.
-
-![sobol](./docs/sobol_perf.png)
-
+**With Digit Permutaion randomization**
+![sobol](./docs/sobol_256_permute.png)
 
 ## Halton sampler
 
-### 2d samples distribution, lower dimension samples start from 1st dimension, higher dimension samples start from 64th dimension.
+**No randomization**
+![halton](./docs/halton_256_norandom.png)
 
-![halton](./docs/halton_256.png)
-
-### Elapsed time of generating 128x256 samples on Ryzen9 6900HX.
-
-![halton](./docs/halton_perf.png)
+**With Digit Permutaion randomization**
+![halton](./docs/halton_256_permute.png)

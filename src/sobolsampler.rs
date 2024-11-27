@@ -106,8 +106,7 @@ where
     }
 
     v = r(v as usize) as u32;
-
-    // 0x2f800000 = 1^-32f
+    // 0x2f800000 = 2^-32f
     let f = (v as f32) * f32::from_bits(0x2f800000);
     Real::from(f).expect("can not convert sobol sample value")
 }
