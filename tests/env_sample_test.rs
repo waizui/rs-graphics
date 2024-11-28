@@ -71,40 +71,37 @@ fn calc_sample_coord(x: Real, y: Real, img: &Image, itgr: Real) -> (usize, usize
     let mut sum = 0.;
 
     let mut r_avg = 0.;
-    for i_h in 0..h {
-        let i_w = tex2pixel(x, w); // at given y
-        let gray = img.data[i_w * w + i_h];
+    let i_h_fix = tex2pixel(y, h);
+    for i_w in 0..w {
+        let gray = img.data[i_h_fix * w + i_w];
         r_avg += gray;
     }
     r_avg /= w as Real;
 
     let mut i_x = 0; // sampling pixel coord of variable y
     for i_w in 0..w {
-        let i_h = tex2pixel(y, h); // at given y
-        let gray = img.data[i_h * w + i_w];
-        sum += gray / (r_avg * itgr); // TODO: r_avg ==0
-        if sum >= y {
+        let gray = img.data[i_h_fix * w + i_w];
+        sum += gray / (r_avg * w as Real); // TODO: r_avg ==0
+        if sum >= x {
             i_x = i_w;
             break;
         }
     }
 
     let mut c_avg = 0.;
-    for i_w in 0..w {
-        let i_h = tex2pixel(y, h);
-        let gray = img.data[i_w * w + i_h];
+    let i_w_fix = tex2pixel(x, w); // at given y
+    for i_h in 0..h {
+        let gray = img.data[i_h * w + i_w_fix];
         c_avg += gray;
     }
     c_avg /= h as Real;
 
     sum = 0.;
     let mut i_y = 0;
-    // col sum
     for i_h in 0..h {
-        let i_w = tex2pixel(x, w); // at given x
-        let gray = img.data[i_h * w + i_w];
-        sum += gray / (c_avg * itgr);
-        if sum >= x {
+        let gray = img.data[i_h * w + i_w_fix];
+        sum += gray / (c_avg * h as Real);
+        if sum >= y {
             i_y = i_h;
             break;
         }
@@ -128,12 +125,11 @@ fn sample_light(img: &Image) -> Image {
     let mut halton = HaltonSampler::new();
     let itgr = calc_integral_over_gray_scale(img);
 
-    for i in 0..32 {
+    for i in 0..1024 {
         Sampler::<Real>::set_i(&mut halton, i);
         Sampler::<Real>::set_dim(&mut halton, 0);
         let xy: [Real; 2] = halton.get2d();
         let st = calc_sample_coord(xy[0], xy[1], img, itgr);
-        // println!("{}-{}|{}-{}", xy[0], xy[1], st.0, st.1);
         res.data[st.0 * w + st.1] = 1.;
     }
 
