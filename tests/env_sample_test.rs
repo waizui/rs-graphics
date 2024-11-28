@@ -4,6 +4,14 @@ use rs_sampler::{haltonsampler::HaltonSampler, sampler::Sampler};
 type Image = PFM;
 type Real = f32;
 
+fn roundi(f: Real) -> i32 {
+    (f + 0.5) as i32
+}
+
+fn tex2pixel(t: Real, num_p: usize) -> usize {
+    roundi(t * (num_p as Real) - 0.5) as usize
+}
+
 fn calc_gray_scale(path: &str) -> Image {
     let pfm = PFM::read_from(path).unwrap();
 
@@ -34,17 +42,30 @@ fn calc_gray_scale(path: &str) -> Image {
     gray_scale
 }
 
-fn roundi(f: Real) -> i32 {
-    (f + 0.5) as i32
+fn calc_integral_over_gray_scale(img: &Image) -> Real {
+    let w = img.w;
+    let h = img.h;
+
+    let mut sum = 0.;
+
+    for i_w in 0..w {
+        for i_h in 0..h {
+            let gray = img.data[i_w * w + i_h];
+            sum += gray;
+        }
+    }
+
+    sum /= (w * h) as Real;
+    sum
 }
 
-fn tex2pixel(t: Real, num_p: usize) -> usize {
-    roundi(t * (num_p as Real) - 0.5) as usize
+fn binary_find_inv_cdf() -> Real {
+    1.
 }
 
 /// x,y: uniformal variables
 /// returns sampling position of x,y
-fn calc_sample_coord(x: Real, y: Real, img: &Image) -> (usize, usize) {
+fn calc_sample_coord(x: Real, y: Real, img: &Image, itgr: Real) -> (usize, usize) {
     let w = img.w;
     let h = img.h;
     let mut sum = 0.;
@@ -55,14 +76,13 @@ fn calc_sample_coord(x: Real, y: Real, img: &Image) -> (usize, usize) {
         let gray = img.data[i_w * w + i_h];
         r_avg += gray;
     }
-
     r_avg /= w as Real;
 
     let mut i_x = 0; // sampling pixel coord of variable y
     for i_w in 0..w {
         let i_h = tex2pixel(y, h); // at given y
         let gray = img.data[i_h * w + i_w];
-        sum += gray / r_avg; // TODO: r_avg ==0
+        sum += gray / (r_avg * itgr); // TODO: r_avg ==0
         if sum >= y {
             i_x = i_w;
             break;
@@ -75,7 +95,7 @@ fn calc_sample_coord(x: Real, y: Real, img: &Image) -> (usize, usize) {
         let gray = img.data[i_w * w + i_h];
         c_avg += gray;
     }
-    c_avg /= w as Real;
+    c_avg /= h as Real;
 
     sum = 0.;
     let mut i_y = 0;
@@ -83,7 +103,7 @@ fn calc_sample_coord(x: Real, y: Real, img: &Image) -> (usize, usize) {
     for i_h in 0..h {
         let i_w = tex2pixel(x, w); // at given x
         let gray = img.data[i_h * w + i_w];
-        sum += gray / c_avg;
+        sum += gray / (c_avg * itgr);
         if sum >= x {
             i_y = i_h;
             break;
@@ -106,15 +126,15 @@ fn sample_light(img: &Image) -> Image {
     };
 
     let mut halton = HaltonSampler::new();
+    let itgr = calc_integral_over_gray_scale(img);
 
-    for i_h in 0..h {
-        for i_w in 0..w {
-            Sampler::<Real>::set_i(&mut halton, i_h * w + i_w);
-            Sampler::<Real>::set_dim(&mut halton, 0);
-            let xy: [Real; 2] = halton.get2d();
-            let st = calc_sample_coord(xy[0], xy[1], img);
-            res.data[st.0 * h + st.1] = 1.;
-        }
+    for i in 0..32 {
+        Sampler::<Real>::set_i(&mut halton, i);
+        Sampler::<Real>::set_dim(&mut halton, 0);
+        let xy: [Real; 2] = halton.get2d();
+        let st = calc_sample_coord(xy[0], xy[1], img, itgr);
+        // println!("{}-{}|{}-{}", xy[0], xy[1], st.0, st.1);
+        res.data[st.0 * w + st.1] = 1.;
     }
 
     res
