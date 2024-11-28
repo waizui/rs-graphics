@@ -4,3 +4,4 @@ pub mod randomizer;
 pub mod sampler;
 pub mod sobolmatrices;
 pub mod sobolsampler;
+pub mod util;

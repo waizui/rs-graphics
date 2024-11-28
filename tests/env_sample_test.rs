@@ -1,6 +1,8 @@
 use del_raycast_core::io_pfm::PFM;
+use rs_sampler::{haltonsampler::HaltonSampler, sampler::Sampler};
 
 type Image = PFM;
+type Real = f32;
 
 fn calc_gray_scale(path: &str) -> Image {
     let pfm = PFM::read_from(path).unwrap();
@@ -32,13 +34,103 @@ fn calc_gray_scale(path: &str) -> Image {
     gray_scale
 }
 
-fn calc_cdf_inv(img: &Image) -> [Image; 2] {
+fn roundi(f: Real) -> i32 {
+    (f + 0.5) as i32
+}
+
+fn tex2pixel(t: Real, num_p: usize) -> usize {
+    roundi(t * (num_p as Real) - 0.5) as usize
+}
+
+/// x,y: uniformal variables
+/// returns sampling position of x,y
+fn calc_sample_coord(x: Real, y: Real, img: &Image) -> (usize, usize) {
+    let w = img.w;
+    let h = img.h;
+    let mut sum = 0.;
+
+    let mut r_avg = 0.;
+    for i_h in 0..h {
+        let i_w = tex2pixel(x, w); // at given y
+        let gray = img.data[i_w * w + i_h];
+        r_avg += gray;
+    }
+
+    r_avg /= w as Real;
+
+    let mut i_x = 0; // sampling pixel coord of variable y
+    for i_w in 0..w {
+        let i_h = tex2pixel(y, h); // at given y
+        let gray = img.data[i_h * w + i_w];
+        sum += gray / r_avg; // TODO: r_avg ==0
+        if sum >= y {
+            i_x = i_w;
+            break;
+        }
+    }
+
+    let mut c_avg = 0.;
+    for i_w in 0..w {
+        let i_h = tex2pixel(y, h);
+        let gray = img.data[i_w * w + i_h];
+        c_avg += gray;
+    }
+    c_avg /= w as Real;
+
+    sum = 0.;
+    let mut i_y = 0;
+    // col sum
+    for i_h in 0..h {
+        let i_w = tex2pixel(x, w); // at given x
+        let gray = img.data[i_h * w + i_w];
+        sum += gray / c_avg;
+        if sum >= x {
+            i_y = i_h;
+            break;
+        }
+    }
+
+    (i_x, i_y)
+}
+
+fn sample_light(img: &Image) -> Image {
+    let w = img.w;
+    let h = img.h;
+
+    let mut res = PFM {
+        data: vec![0.; w * h],
+        w,
+        h,
+        channels: 1,
+        little_endian: img.little_endian,
+    };
+
+    let mut halton = HaltonSampler::new();
+
+    for i_h in 0..h {
+        for i_w in 0..w {
+            Sampler::<Real>::set_i(&mut halton, i_h * w + i_w);
+            Sampler::<Real>::set_dim(&mut halton, 0);
+            let xy: [Real; 2] = halton.get2d();
+            let st = calc_sample_coord(xy[0], xy[1], img);
+            res.data[st.0 * h + st.1] = 1.;
+        }
+    }
+
+    res
+}
+
+fn calc_cdf_inv_lookup(img: &Image) -> [Image; 2] {
+    todo!()
+}
+
+fn sample_light_lookup(img: &Image, tbl: &[Image; 2]) -> Image {
     todo!()
 }
 
 #[test]
 fn test_env_sample() {
     let img = calc_gray_scale("asset/envmap.pfm");
-    // let _ = img.save("target/envmap_gray.pfm");
-    // let cdf_inv = calc_cdf_inv(&img);
+    let env = sample_light(&img);
+    let _ = env.save("target/envmap_gray.pfm");
 }
