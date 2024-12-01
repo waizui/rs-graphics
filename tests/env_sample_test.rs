@@ -3,6 +3,7 @@ use rs_sampler::{haltonsampler::HaltonSampler, sampler::Sampler};
 
 type Image = PFM;
 type Real = f32;
+const PI:Real = std::f32::consts::PI;
 
 fn roundi(f: Real) -> i32 {
     (f + 0.5) as i32
@@ -110,7 +111,25 @@ fn calc_sample_coord(x: Real, y: Real, img: &Image) -> (usize, usize) {
     (i_x, i_y)
 }
 
-fn octtexcoor2dir(u: Real, v: Real) -> (Real, Real, Real) {
+fn unitsphere2envmap(d: &[f32; 3]) -> [Real; 2] {
+    let x = d[0].abs();
+    let y = d[1].abs();
+    let z = d[2].abs();
+    let r = (1. - z).sqrt();
+    let phi = y.atan2(x);
+    let phi = phi * std::f32::consts::FRAC_2_PI;
+    let v = phi * r;
+    let u = r - v;
+    let (u, v) = if d[2] < 0. { (1. - v, 1. - u) } else { (u, v) };
+    let u = u.copysign(d[0]);
+    let v = v.copysign(-d[1]);
+    [u * 0.5 + 0.5, v * 0.5 + 0.5]
+}
+
+fn envmap2unitsphere(u: Real, v: Real) -> [Real; 3] {
+    let r = u;
+    let phi =  (PI/4.) * v/u
+
     todo!()
 }
 
@@ -128,7 +147,6 @@ fn sample_light(img: &Image) -> Image {
 
     let mut halton = HaltonSampler::new();
     let itgr = calc_integral_over_grayscale(img);
-
     for i in 0..1024 {
         Sampler::<Real>::set_i(&mut halton, i);
         Sampler::<Real>::set_dim(&mut halton, 0);
