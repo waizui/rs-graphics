@@ -42,7 +42,7 @@ fn calc_gray_scale(path: &str) -> Image {
     gray_scale
 }
 
-fn calc_integral_over_gray_scale(img: &Image) -> Real {
+fn calc_integral_over_grayscale(img: &Image) -> Real {
     let w = img.w;
     let h = img.h;
 
@@ -65,7 +65,7 @@ fn binary_find_inv_cdf() -> Real {
 
 /// x,y: uniformal variables
 /// returns sampling position of x,y
-fn calc_sample_coord(x: Real, y: Real, img: &Image, itgr: Real) -> (usize, usize) {
+fn calc_sample_coord(x: Real, y: Real, img: &Image) -> (usize, usize) {
     let w = img.w;
     let h = img.h;
     let mut sum = 0.;
@@ -110,6 +110,10 @@ fn calc_sample_coord(x: Real, y: Real, img: &Image, itgr: Real) -> (usize, usize
     (i_x, i_y)
 }
 
+fn octtexcoor2dir(u: Real, v: Real) -> (Real, Real, Real) {
+    todo!()
+}
+
 fn sample_light(img: &Image) -> Image {
     let w = img.w;
     let h = img.h;
@@ -123,13 +127,13 @@ fn sample_light(img: &Image) -> Image {
     };
 
     let mut halton = HaltonSampler::new();
-    let itgr = calc_integral_over_gray_scale(img);
+    let itgr = calc_integral_over_grayscale(img);
 
     for i in 0..1024 {
         Sampler::<Real>::set_i(&mut halton, i);
         Sampler::<Real>::set_dim(&mut halton, 0);
         let xy: [Real; 2] = halton.get2d();
-        let st = calc_sample_coord(xy[0], xy[1], img, itgr);
+        let st = calc_sample_coord(xy[0], xy[1], img);
         res.data[st.0 * w + st.1] = 1.;
     }
 
