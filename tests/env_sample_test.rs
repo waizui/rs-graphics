@@ -13,10 +13,20 @@ fn tex2pixel(t: Real, num_p: usize) -> usize {
     roundi(t * (num_p as Real) - 0.5) as usize
 }
 
-fn pixel2tex(x: usize, y: usize, img: &Image) -> [Real; 2] {
-    let u = x as Real / img.w as Real;
-    let v = y as Real / img.h as Real;
+fn pixel2tex(x: usize, y: usize, w: usize, h: usize) -> [Real; 2] {
+    let u = x as Real / w as Real;
+    let v = y as Real / h as Real;
     [u, v]
+}
+
+fn create_image(channels: usize, w: usize, h: usize) -> Image {
+    PFM {
+        data: vec![0.; w * h * channels],
+        w,
+        h,
+        channels,
+        little_endian: false,
+    }
 }
 
 fn unitsphere2envmap(d: &[f32; 3]) -> [Real; 2] {
@@ -186,46 +196,43 @@ fn calc_sample_coord(x: Real, y: Real, img: &Image, itgr: Real) -> ([usize; 2], 
 }
 
 fn sample_light(grayscale: &Image, envmap: &Image) -> Image {
-    let w = grayscale.w;
-    let h = grayscale.h;
+    let w = 128;
+    let h = 128;
 
-    let mut res = PFM {
-        data: vec![0.; w * h],
-        w,
-        h,
-        channels: 3,
-        little_endian: grayscale.little_endian,
-    };
+    let mut res = create_image(3, w, h);
 
     let mut halton = HaltonSampler::new();
     let itgr = calc_integral_over_grayscale(grayscale);
 
-    let nsamples = 8;
-    for i_w in 0..64 {
-        for i_h in 0..64 {
+    let nsamples = 16;
+    for i_w in 0..w {
+        for i_h in 0..h {
             // screen coord to world
-            let tex = pixel2tex(i_w, i_h, grayscale);
+            let tex = pixel2tex(i_w, i_h, w, h);
             let nrm = envmap2unitsphere(tex[0], tex[1]);
 
+            let mut color = [0.; 3];
             for i in 0..nsamples {
                 Sampler::<Real>::set_i(&mut halton, i + 1);
                 Sampler::<Real>::set_dim(&mut halton, 0);
-                let xy: [Real; 2] = halton.get2d();
+                let random: [Real; 2] = halton.get2d();
                 // sampling position
-                let coord_pfd = calc_sample_coord(xy[0], xy[1], grayscale, itgr);
+                let coord_pfd = calc_sample_coord(random[0], random[1], grayscale, itgr);
                 let st = coord_pfd.0;
-                let p2t = pixel2tex(st[0], st[1], grayscale);
+                let tex_coord = pixel2tex(st[0], st[1], grayscale.w, grayscale.h);
                 // sampling ray direction
-                let raydir = envmap2unitsphere(p2t[0], p2t[1]);
+                let raydir = envmap2unitsphere(tex_coord[0], tex_coord[1]);
 
                 let costheta = del_geo_core::vec3::dot(&raydir, &nrm);
                 if costheta > 0. {
-                    let mut color = get_color(p2t[0], p2t[1], envmap);
+                    let tex_color = get_color(tex_coord[0], tex_coord[1], envmap);
+                    color = del_geo_core::vec3::add(&color, &tex_color);
                     let pdf = coord_pfd.1;
-                    set_color(&color, tex[0], tex[1], &mut res);
+                    del_geo_core::vec3::scale(&mut color, 0.3);
                 }
-                // costheta
             }
+            del_geo_core::vec3::scale(&mut color, 1. / (nsamples as Real));
+            set_color(&color, tex[0], tex[1], &mut res);
         }
     }
 
