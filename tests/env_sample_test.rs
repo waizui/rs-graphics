@@ -58,9 +58,9 @@ fn envmap2unitsphere(u: Real, v: Real) -> [Real; 3] {
 fn get_color(u: Real, v: Real, img: &Image) -> [Real; 3] {
     let channel = img.channels;
     let i_w = tex2pixel(u, img.w);
-    let i_h = tex2pixel(v, img.w);
+    let i_h = tex2pixel(v, img.h);
 
-    let i = i_h * img.w + i_w;
+    let i = channel * (i_h * img.w + i_w);
     if channel == 3 {
         let r = img.data[i];
         let g = img.data[i + 1];
@@ -77,9 +77,9 @@ fn get_color(u: Real, v: Real, img: &Image) -> [Real; 3] {
 fn set_color(col: &[Real; 3], u: Real, v: Real, img: &mut Image) {
     let channel = img.channels;
     let i_w = tex2pixel(u, img.w);
-    let i_h = tex2pixel(v, img.w);
+    let i_h = tex2pixel(v, img.h);
 
-    let i = i_h * img.w + i_w;
+    let i = channel * (i_h * img.w + i_w);
     if channel == 3 {
         img.data[i] = col[0];
         img.data[i + 1] = col[1];
@@ -190,15 +190,17 @@ fn calc_sample_coord(x: Real, y: Real, img: &Image, itgr: Real) -> ([usize; 2], 
 }
 
 fn sample_light(grayscale: &Image, envmap: &Image) -> Image {
-    let w = 32;
-    let h = 32;
+    let w = 128;
+    let h = 128;
+
+    let debug = true;
 
     let mut res = create_image(3, w, h);
 
     let mut halton = HaltonSampler::new();
     let itgr = calc_integral_over_grayscale(grayscale);
 
-    let nsamples = 64;
+    let nsamples = 16;
     for i_w in 0..w {
         for i_h in 0..h {
             // screen coord to world
@@ -213,20 +215,33 @@ fn sample_light(grayscale: &Image, envmap: &Image) -> Image {
                 // sampling position
                 let coord_pfd = calc_sample_coord(random[0], random[1], grayscale, itgr);
                 let st = coord_pfd.0;
-                let tex_coord = pixel2tex(st[0], st[1], grayscale.w, grayscale.h);
+                let s_tex_coord = pixel2tex(st[0], st[1], grayscale.w, grayscale.h);
                 // sampling ray direction
-                let raydir = envmap2unitsphere(tex_coord[0], tex_coord[1]);
+                let raydir = envmap2unitsphere(s_tex_coord[0], s_tex_coord[1]);
 
-                let costheta = del_geo_core::vec3::dot(&raydir, &nrm);
-                if costheta > 0. {
-                    let mut tex_color = get_color(tex_coord[0], tex_coord[1], envmap);
-                    del_geo_core::vec3::scale(&mut tex_color, 0.3);
-                    color = del_geo_core::vec3::add(&color, &tex_color);
-                    let pdf = coord_pfd.1;
+                let mut tex_color = get_color(s_tex_coord[0], s_tex_coord[1], envmap);
+                if debug {
+                    set_color(&[1., 0., 0.], s_tex_coord[0], s_tex_coord[1], &mut res);
+                } else {
+                    let costheta = del_geo_core::vec3::dot(&raydir, &nrm);
+                    if costheta > 0. {
+                        del_geo_core::vec3::scale(&mut tex_color, 0.3);
+                        color = del_geo_core::vec3::add(&color, &tex_color);
+                        let pdf = coord_pfd.1;
+                    }
                 }
             }
-            del_geo_core::vec3::scale(&mut color, 1. / (nsamples as Real));
-            set_color(&color, tex[0], tex[1], &mut res);
+
+            if debug {
+                let color = get_color(tex[0], tex[1], &res);
+                if color[0] < 1. {
+                    let tex_color = get_color(tex[0], tex[1], envmap);
+                    set_color(&tex_color, tex[0], tex[1], &mut res);
+                }
+            } else {
+                del_geo_core::vec3::scale(&mut color, 1. / (nsamples as Real));
+                set_color(&color, tex[0], tex[1], &mut res);
+            }
         }
     }
 
