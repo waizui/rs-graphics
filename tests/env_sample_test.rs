@@ -60,12 +60,6 @@ fn get_color(u: Real, v: Real, img: &Image) -> [Real; 3] {
     let i_w = tex2pixel(u, img.w);
     let i_h = tex2pixel(v, img.w);
 
-    // let r = img.data[530360];
-    // let g = img.data[530361];
-    // let b = img.data[530362];
-    //
-    // dbg!(r,g,b);
-
     let i = i_h * img.w + i_w;
     if channel == 3 {
         let r = img.data[i];
@@ -196,15 +190,15 @@ fn calc_sample_coord(x: Real, y: Real, img: &Image, itgr: Real) -> ([usize; 2], 
 }
 
 fn sample_light(grayscale: &Image, envmap: &Image) -> Image {
-    let w = 128;
-    let h = 128;
+    let w = 32;
+    let h = 32;
 
     let mut res = create_image(3, w, h);
 
     let mut halton = HaltonSampler::new();
     let itgr = calc_integral_over_grayscale(grayscale);
 
-    let nsamples = 16;
+    let nsamples = 64;
     for i_w in 0..w {
         for i_h in 0..h {
             // screen coord to world
@@ -225,10 +219,10 @@ fn sample_light(grayscale: &Image, envmap: &Image) -> Image {
 
                 let costheta = del_geo_core::vec3::dot(&raydir, &nrm);
                 if costheta > 0. {
-                    let tex_color = get_color(tex_coord[0], tex_coord[1], envmap);
+                    let mut tex_color = get_color(tex_coord[0], tex_coord[1], envmap);
+                    del_geo_core::vec3::scale(&mut tex_color, 0.3);
                     color = del_geo_core::vec3::add(&color, &tex_color);
                     let pdf = coord_pfd.1;
-                    del_geo_core::vec3::scale(&mut color, 0.3);
                 }
             }
             del_geo_core::vec3::scale(&mut color, 1. / (nsamples as Real));
