@@ -13,14 +13,14 @@ fn tex2pixel(t: Real, num_p: usize) -> usize {
     roundi(t * (num_p as Real) - 0.5) as usize
 }
 
-fn calc_gray_scale(path: &str) -> Image {
+fn calc_grayscale(path: &str) -> Image {
     let pfm = PFM::read_from(path).unwrap();
 
     if pfm.channels < 3 {
         panic!("pfm channel invalid");
     }
 
-    let mut gray_scale = PFM {
+    let mut grayscale = PFM {
         data: vec![0.; pfm.w * pfm.h],
         w: pfm.w,
         h: pfm.h,
@@ -36,11 +36,11 @@ fn calc_gray_scale(path: &str) -> Image {
             let g = pfm.data[p_i + 1];
             let b = pfm.data[p_i + 2];
             let gray = (0.2126 * r + 0.7152 * g + 0.0722 * b).clamp(0., 1.);
-            gray_scale.data[h * pfm.w + w] = gray;
+            grayscale.data[h * pfm.w + w] = gray;
         }
     }
 
-    gray_scale
+    grayscale
 }
 
 fn calc_integral_over_grayscale(img: &Image) -> Real {
@@ -168,7 +168,7 @@ fn sample_light_lookup(img: &Image, tbl: &[Image; 2]) -> Image {
 
 #[test]
 fn test_env_sample() {
-    let img = calc_gray_scale("asset/envmap.pfm");
+    let img = calc_grayscale("asset/envmap.pfm");
     let env = sample_light(&img);
     let _ = env.save("target/envmap_gray.pfm");
 }
