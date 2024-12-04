@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use rs_sampler::envmap;
 use rs_sampler::{
-    envmap::pixel2tex, envmap::tex2pixel, envmap::Image, haltonsampler::HaltonSampler,
+    envmap::pixel2texpair, envmap::tex2pixel, envmap::Image, haltonsampler::HaltonSampler,
     sampler::Sampler,
 };
 

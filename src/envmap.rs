@@ -9,11 +9,11 @@ pub trait Image {
     fn set(&mut self, uv: &[Real; 2], color: &[Real; 3]);
 
     fn get_p(&self, uv: &[usize; 2]) -> [Real; 3] {
-        let p = pixel2tex(uv[0], uv[1], self.w(), self.h());
+        let p = pixel2texpair(uv[0], uv[1], self.w(), self.h());
         self.get(&p)
     }
     fn set_p(&mut self, uv: &[usize; 2], color: &[Real; 3]) {
-        let p = pixel2tex(uv[0], uv[1], self.w(), self.h());
+        let p = pixel2texpair(uv[0], uv[1], self.w(), self.h());
         self.set(&p, color)
     }
 }
@@ -26,9 +26,17 @@ pub fn tex2pixel(t: Real, ext: usize) -> usize {
     roundi(t * ((ext - 1) as Real) - 0.5) as usize
 }
 
-pub fn pixel2tex(x: usize, y: usize, w: usize, h: usize) -> [Real; 2] {
-    let u = x as Real / w as Real;
-    let v = y as Real / h as Real;
+pub fn pixel2tex(p: usize, ext: usize) -> Real {
+    if ext != 1 {
+        return p as Real / (ext - 1) as Real;
+    }
+
+    0.
+}
+
+pub fn pixel2texpair(x: usize, y: usize, w: usize, h: usize) -> [Real; 2] {
+    let u = pixel2tex(x, w);
+    let v = pixel2tex(y, h);
     [u, v]
 }
 
@@ -123,7 +131,7 @@ where
             c_avg += gray;
         }
         c_avg /= h as Real;
-        col_avg_map.set_p(&[p_w, 1], &[c_avg; 3]);
+        col_avg_map.set_p(&[p_w, 0], &[c_avg; 3]);
     }
 
     let mut row_avg_map = T::new(1, h);
@@ -134,7 +142,7 @@ where
             r_avg += gray;
         }
         r_avg /= w as Real;
-        row_avg_map.set_p(&[1, p_h], &[r_avg; 3]);
+        row_avg_map.set_p(&[0, p_h], &[r_avg; 3]);
     }
 
     [col_avg_map, row_avg_map]
@@ -160,7 +168,7 @@ where
             let mut sum = 0.;
 
             let mut i_x = 0;
-            let u = p_w as Real / w as Real;
+            let u = pixel2tex(p_w, w);
             for i_w in 0..w {
                 // p(w|h) = p(w,h)/p(h) = gray(w,h) / col_avg(w)
                 let c_avg = col_avg.get_p(&[i_w, 0])[0]; // col avg of w-th column
@@ -173,7 +181,7 @@ where
 
             sum = 0.;
             let mut i_y = 0;
-            let v = p_h as Real / w as Real;
+            let v = pixel2tex(p_h, h);
             for i_h in 0..h {
                 let r_avg = row_avg.get_p(&[0, p_h])[0]; // row avg of h-th row
                 sum += grayscale.get_p(&[p_w, i_h])[0] / (r_avg * h as Real);
@@ -183,10 +191,8 @@ where
                 }
             }
 
-            map.set_p(
-                &[p_w, p_h],
-                &[i_x as Real / w as Real, i_y as Real / h as Real, 0.],
-            );
+            let invtex = pixel2texpair(i_x, i_y, w, h);
+            map.set_p(&[p_w, p_h], &[invtex[0], invtex[1], 0.]);
         }
     }
 
