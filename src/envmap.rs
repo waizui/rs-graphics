@@ -22,8 +22,8 @@ pub fn roundi(f: Real) -> i32 {
     (f + 0.5) as i32
 }
 
-pub fn tex2pixel(t: Real, p: usize) -> usize {
-    roundi(t * (p as Real) - 0.5) as usize
+pub fn tex2pixel(t: Real, ext: usize) -> usize {
+    roundi(t * (ext as Real) - 0.5) as usize
 }
 
 pub fn pixel2tex(x: usize, y: usize, w: usize, h: usize) -> [Real; 2] {
@@ -198,8 +198,8 @@ fn test_sphere_mapping() {
     let mut dir = [0.; 3];
 
     for i in 0..100 {
-        for j in i..(i + 3) {
-            dir[j] = (j + 1) as Real;
+        for j in 0..3 {
+            dir[j] = (i + 1) as Real;
         }
 
         del_geo_core::vec3::normalize(&mut dir);
