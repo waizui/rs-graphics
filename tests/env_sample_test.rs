@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use rs_sampler::envmap;
 use rs_sampler::{
     envmap::pixel2tex, envmap::tex2pixel, envmap::Image, haltonsampler::HaltonSampler,
@@ -80,21 +82,27 @@ fn binary_find_inv_cdf() -> Real {
 
 #[test]
 fn test_inverse_cdf() {
-    let pfm = PFM::read_from("asset/envmap.pfm").unwrap();
-    let w = pfm.w();
-    let h = pfm.h();
+    // TODO: fix flipped 
+    let mut sw = Instant::now();
+
+    let mut pfm = PFM::read_from("asset/envmap.pfm").unwrap();
     let invcdfmap = envmap::calc_inverse_cdf_map(&pfm);
-    let mut res = PFM::new(w, h);
-    for p_h in 0..h {
-        for p_w in 0..w {
-            let tex = invcdfmap.get_p(&[p_w, p_h]);
-            let u = tex2pixel(tex[0], w);
-            let v = tex2pixel(tex[1], h);
-            res.set_p(&[u, v], &[1.; 3]);
-        }
+
+    println!("Build inverse cdf map:{} ms", sw.elapsed().as_millis());
+
+    sw = Instant::now();
+
+    let mut halton = HaltonSampler::new();
+    for i in 0..1024 * 1024 {
+        Sampler::<Real>::set_i(&mut halton, i);
+        Sampler::<Real>::set_dim(&mut halton, 0);
+        let random: [Real; 2] = Sampler::get2d(&mut halton);
+        let tex = invcdfmap.get(&random);
+        pfm.set(&[tex[0], tex[1]], &[1., 0., 0.]);
     }
 
-    let _ = res.save_to("target/invcdf.pfm");
+    println!("Generate Samples:{} ms", sw.elapsed().as_millis());
+    let _ = pfm.save_to("target/invcdf.pfm");
 }
 
 #[test]
