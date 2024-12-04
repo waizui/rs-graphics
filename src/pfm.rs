@@ -145,7 +145,7 @@ fn get_color(u: Real, v: Real, img: &PFM) -> [Real; 3] {
         [r, g, b]
     } else if channel == 1 {
         let g = img.data[i];
-        [g, g, g]
+        [g; 3]
     } else {
         panic!("Invalid channel");
     }

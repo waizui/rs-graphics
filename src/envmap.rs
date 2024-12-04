@@ -23,7 +23,7 @@ pub fn roundi(f: Real) -> i32 {
 }
 
 pub fn tex2pixel(t: Real, ext: usize) -> usize {
-    roundi(t * (ext as Real) - 0.5) as usize
+    roundi(t * ((ext - 1) as Real) - 0.5) as usize
 }
 
 pub fn pixel2tex(x: usize, y: usize, w: usize, h: usize) -> [Real; 2] {
