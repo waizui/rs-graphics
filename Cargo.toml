@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 num-traits = "0.2.19"
+anyhow = "1.0.93"
 del-geo-core = { git = "https://github.com/nobuyuki83/del-geo.git"}
 
 [dev-dependencies]

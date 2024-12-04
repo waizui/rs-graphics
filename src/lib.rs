@@ -6,3 +6,4 @@ pub mod sobolmatrices;
 pub mod sobolsampler;
 pub mod util;
 pub mod envmap;
+pub mod pfm;
