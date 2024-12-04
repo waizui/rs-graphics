@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 num-traits = "0.2.19"
-del-raycast-core= {  path = "../del-raycast/del-raycast-core" }
 del-geo-core = { git = "https://github.com/nobuyuki83/del-geo.git"}
 
 [dev-dependencies]

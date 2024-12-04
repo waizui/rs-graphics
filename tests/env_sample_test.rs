@@ -1,5 +1,4 @@
 use del_raycast_core::io_pfm::PFM;
-use num_traits::abs;
 use rs_sampler::{haltonsampler::HaltonSampler, sampler::Sampler};
 
 type Image = PFM;
@@ -29,6 +28,35 @@ fn create_image(channels: usize, w: usize, h: usize) -> Image {
         little_endian: false,
     }
 }
+
+// fn save(&self, path: &str) -> anyhow::Result<()> {
+//         use std::io::Write;
+//         let mut file = File::create(path)?;
+//         let header = match self.channels {
+//             3 => "PF\n",
+//             1 => "Pf\n",
+//             _ => return Err(anyhow!("Invalid number of channels")),
+//         };
+//
+//         file.write_all(header.as_bytes())?;
+//         let dimensions = format!("{} {}\n", self.w, self.h);
+//         file.write_all(dimensions.as_bytes())?;
+//
+//         let scale = if self.little_endian { -1.0 } else { 1.0 };
+//         file.write_all(format!("{}\n", scale).as_bytes())?;
+//
+//         for value in &self.data {
+//             let bytes = if self.little_endian {
+//                 value.to_le_bytes()
+//             } else {
+//                 value.to_be_bytes()
+//             };
+//             file.write_all(&bytes)?;
+//         }
+//
+//         Ok(())
+//     }
+// }
 
 fn unitsphere2envmap(d: &[f32; 3]) -> [Real; 2] {
     let x = d[0].abs();
@@ -211,7 +239,7 @@ fn sample_light(grayscale: &Image, envmap: &Image) -> Image {
     let mut halton = HaltonSampler::new();
     let itgr = calc_integral_over_grayscale(grayscale);
 
-    let nsamples = 16;
+    let nsamples = 128;
     for i_w in 0..w {
         for i_h in 0..h {
             // screen coord to world
@@ -236,7 +264,7 @@ fn sample_light(grayscale: &Image, envmap: &Image) -> Image {
                 } else {
                     let costheta = del_geo_core::vec3::dot(&raydir, &nrm);
                     if costheta > 0. && pdf > 0. {
-                        let sintheta = raydir[2];
+                        let sintheta = (1. - raydir[2] * raydir[2]).sqrt();
                         let mut color = [PI * 2.; 3]; //Jacobian TODO:replace with correct term
                         color[0] *= radiance[0];
                         color[1] *= radiance[1];
@@ -286,9 +314,9 @@ fn test_sphere_mapping() {
     let uv = unitsphere2envmap(&dir);
     let udir = envmap2unitsphere(&uv);
 
-    assert!(dir[0] - udir[0] < 0.001);
-    assert!(dir[1] - udir[1] < 0.001);
-    assert!(dir[2] - udir[2] < 0.001);
+    assert!((dir[0] - udir[0]).abs() < 0.001);
+    assert!((dir[1] - udir[1]).abs() < 0.001);
+    assert!((dir[2] - udir[2]).abs() < 0.001);
 }
 
 #[test]
