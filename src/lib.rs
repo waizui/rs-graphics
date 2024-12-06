@@ -1,9 +1,10 @@
+pub mod envmap;
 pub mod haltonsampler;
+pub mod pfm;
 pub mod primes;
 pub mod randomizer;
 pub mod sampler;
 pub mod sobolmatrices;
 pub mod sobolsampler;
 pub mod util;
-pub mod envmap;
-pub mod pfm;
+pub mod envmaplight;

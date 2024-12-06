@@ -76,7 +76,7 @@ pub fn envmap2unitsphere(p: &[Real; 2]) -> [Real; 3] {
     [x, y, z]
 }
 
-fn calc_grayscale<T>(img: &T) -> T
+pub fn calc_grayscale<T>(img: &T) -> T
 where
     T: Image,
 {
@@ -96,7 +96,7 @@ where
     grayscale
 }
 
-fn calc_integral_over_grayscale<T>(gray_img: &T) -> Real
+pub fn calc_integral_over_grayscale<T>(gray_img: &T) -> Real
 where
     T: Image,
 {
