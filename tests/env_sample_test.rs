@@ -1,19 +1,19 @@
-use std::time::Instant;
+// use std::time::Instant;
 
-use rs_sampler::envmap;
-use rs_sampler::{
-    envmap::pixel2texpair, envmap::tex2pixel, envmap::Image, haltonsampler::HaltonSampler,
-    sampler::Sampler,
-};
+// use rs_sampler::envmap;
+// use rs_sampler::{
+//     envmap::pixel2texpair, envmap::tex2pixel, envmap::Image, haltonsampler::HaltonSampler,
+//     sampler::Sampler,
+// };
 
-use rs_sampler::pfm::PFM;
+// use rs_sampler::pfm::PFM;
 
-type Real = f32;
-const PI: Real = std::f32::consts::PI;
-
-fn binary_find_inv_cdf() -> Real {
-    todo!()
-}
+// type Real = f32;
+// const PI: Real = std::f32::consts::PI;
+//
+// fn binary_find_inv_cdf() -> Real {
+//     todo!()
+// }
 
 // fn sample_light(grayscale: &Image, envmap: &Image) -> Image {
 //     let w = 64;

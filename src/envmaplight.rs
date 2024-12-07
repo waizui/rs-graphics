@@ -137,7 +137,7 @@ fn test_grayscale() {
     let rgbdata = pfm
         .data
         .chunks(pfm.channels)
-        .map(|chunk| *Rgb::from_slice(&[chunk[1], chunk[2], chunk[3]]))
+        .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
         .collect_vec();
 
     let grayscale = calc_grayscale(&rgbdata, pfm.w, pfm.h);
@@ -203,6 +203,7 @@ fn test_inverse_cdf() {
         let r_w = tex2pixel(random[0], pfm.w);
         let r_h = tex2pixel(random[1], pfm.h);
         let tex = invcdfmap[r_h * pfm.w + r_w];
+
         let p_w = tex2pixel(tex[0], pfm.w);
         let p_h = tex2pixel(tex[1], pfm.h);
         rgbdata[p_h * pfm.w + p_w] = *Rgb::from_slice(&[1., 0., 0.]);

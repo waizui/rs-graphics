@@ -1,4 +1,4 @@
-use crate::envmap::tex2pixel;
+use crate::envmaplight::tex2pixel;
 use anyhow::anyhow;
 use std::fs::File;
 use std::io::BufReader;
@@ -110,27 +110,27 @@ impl PFM {
     }
 }
 
-impl crate::envmap::Image for PFM {
-    fn new(w: usize, h: usize) -> Self {
-        create_image(3, w, h)
-    }
-
-    fn w(&self) -> usize {
-        self.w
-    }
-
-    fn h(&self) -> usize {
-        self.h
-    }
-
-    fn get(&self, uv: &[Real; 2]) -> [Real; 3] {
-        get_color(uv[0], uv[1], self)
-    }
-
-    fn set(&mut self, uv: &[Real; 2], color: &[Real; 3]) {
-        set_color(color, uv[0], uv[1], self)
-    }
-}
+// impl crate::envmaplight::Image for PFM {
+//     fn new(w: usize, h: usize) -> Self {
+//         create_image(3, w, h)
+//     }
+//
+//     fn w(&self) -> usize {
+//         self.w
+//     }
+//
+//     fn h(&self) -> usize {
+//         self.h
+//     }
+//
+//     fn get(&self, uv: &[Real; 2]) -> [Real; 3] {
+//         get_color(uv[0], uv[1], self)
+//     }
+//
+//     fn set(&mut self, uv: &[Real; 2], color: &[Real; 3]) {
+//         set_color(color, uv[0], uv[1], self)
+//     }
+// }
 
 fn get_color(u: Real, v: Real, img: &PFM) -> [Real; 3] {
     let channel = img.channels;

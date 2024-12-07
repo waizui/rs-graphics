@@ -1,4 +1,3 @@
-pub mod envmap;
 pub mod haltonsampler;
 pub mod pfm;
 pub mod primes;
