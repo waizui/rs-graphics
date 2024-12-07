@@ -6,6 +6,28 @@ use rayon::iter::IndexedParallelIterator;
 use rayon::iter::IntoParallelRefMutIterator;
 use rayon::iter::ParallelIterator;
 
+pub fn roundi(f: Real) -> i32 {
+    (f + 0.5) as i32
+}
+
+pub fn tex2pixel(t: Real, ext: usize) -> usize {
+    roundi(t * ((ext - 1) as Real) - 0.5) as usize
+}
+
+pub fn pixel2tex(p: usize, ext: usize) -> Real {
+    if ext != 1 {
+        return p as Real / (ext - 1) as Real;
+    }
+
+    0.
+}
+
+pub fn pixel2texpair(x: usize, y: usize, w: usize, h: usize) -> [Real; 2] {
+    let u = pixel2tex(x, w);
+    let v = pixel2tex(y, h);
+    [u, v]
+}
+
 pub fn calc_grayscale(img: &Vec<Rgb>, w: usize, h: usize) -> Vec<Rgb> {
     let iter = |i_pix: usize, pix: &mut Rgb| {
         let c = img[i_pix];
@@ -58,6 +80,55 @@ pub fn calc_avg_col_row(grayscale: &Vec<Rgb>, w: usize, h: usize) -> [Vec<Rgb>; 
     [col_avg_map, row_avg_map]
 }
 
+/// use tow channels to store cdf^-1 on w and h
+pub fn calc_inverse_cdf_map(envmap: &Vec<Rgb>, w: usize, h: usize) -> Vec<Rgb> {
+    let grayscale = calc_grayscale(envmap, w, h);
+    let avgs = calc_avg_col_row(&grayscale, w, h);
+    let col_avg = &avgs[0];
+    let row_avg = &avgs[1];
+
+    let mut map = vec![*Rgb::from_slice(&[0.; 3]); w * h];
+    let iter = |i_pix: usize, pix: &mut Rgb| {
+        let mut sum = 0.;
+
+        let cur_w = i_pix % w;
+        let cur_h = i_pix / w;
+
+        let mut i_x = 0;
+        let u = pixel2tex(cur_w, w);
+        for i_w in 0..w {
+            // p(w|h) = p(w,h)/p(h) = gray(w,h) / col_avg(w)
+            let c_avg = col_avg[i_w][0]; // col avg of w-th column
+            sum += grayscale[cur_h * w + i_w][0] / (c_avg * w as Real);
+            if sum >= u {
+                i_x = i_w;
+                break;
+            }
+        }
+
+        sum = 0.;
+        let mut i_y = 0;
+        let v = pixel2tex(cur_h, h);
+        for i_h in 0..h {
+            let r_avg = row_avg[i_h][0]; // row avg of h-th row
+            sum += grayscale[w * i_h + cur_h][0] / (r_avg * h as Real);
+            if sum >= v {
+                i_y = i_h;
+                break;
+            }
+        }
+
+        let invtex = pixel2texpair(i_x, i_y, w, h);
+        pix.0 = [invtex[0], invtex[1], 0.];
+    };
+
+    map.par_iter_mut()
+        .enumerate()
+        .for_each(|(i_pix, pix)| iter(i_pix, pix));
+
+    map
+}
+
 #[test]
 fn test_grayscale() {
     use crate::pfm::PFM;
@@ -66,7 +137,7 @@ fn test_grayscale() {
     let rgbdata = pfm
         .data
         .chunks(pfm.channels)
-        .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[0], chunk[0]]))
+        .map(|chunk| *Rgb::from_slice(&[chunk[1], chunk[2], chunk[3]]))
         .collect_vec();
 
     let grayscale = calc_grayscale(&rgbdata, pfm.w, pfm.h);
@@ -84,7 +155,7 @@ fn test_calc_col_row_avg() {
     let rgbdata = pfm
         .data
         .chunks(pfm.channels)
-        .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[0], chunk[0]]))
+        .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
         .collect_vec();
     let grayscale = calc_grayscale(&rgbdata, pfm.w, pfm.h);
 
@@ -99,4 +170,48 @@ fn test_calc_col_row_avg() {
     let file_ms = std::fs::File::create("target/04_env_light_row_avg.hdr").unwrap();
     let enc = HdrEncoder::new(file_ms);
     let _ = enc.encode(&avg[1], pfm.w, 1);
+}
+
+#[test]
+fn test_inverse_cdf() {
+    use crate::haltonsampler::HaltonSampler;
+    use crate::pfm::PFM;
+    use crate::sampler::Sampler;
+    use itertools::Itertools;
+    use std::time::Instant;
+
+    let mut sw = Instant::now();
+
+    let pfm = PFM::read_from("asset/envmap.pfm").unwrap();
+    let mut rgbdata = pfm
+        .data
+        .chunks(pfm.channels)
+        .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
+        .collect_vec();
+
+    let invcdfmap = calc_inverse_cdf_map(&rgbdata, pfm.w, pfm.h);
+
+    println!("Build inverse cdf map:{} ms", sw.elapsed().as_millis());
+
+    sw = Instant::now();
+
+    let mut halton = HaltonSampler::new();
+    for i in 0..1024 * 1024 {
+        Sampler::<Real>::set_i(&mut halton, i);
+        Sampler::<Real>::set_dim(&mut halton, 0);
+        let random: [Real; 2] = Sampler::get2d(&mut halton);
+        let r_w = tex2pixel(random[0], pfm.w);
+        let r_h = tex2pixel(random[1], pfm.h);
+        let tex = invcdfmap[r_h * pfm.w + r_w];
+        let p_w = tex2pixel(tex[0], pfm.w);
+        let p_h = tex2pixel(tex[1], pfm.h);
+        rgbdata[p_h * pfm.w + p_w] = *Rgb::from_slice(&[1., 0., 0.]);
+    }
+
+    println!("Generate Samples:{} ms", sw.elapsed().as_millis());
+
+    use image::codecs::hdr::HdrEncoder;
+    let file_ms = std::fs::File::create("target/04_env_light_invcdf.hdr").unwrap();
+    let enc = HdrEncoder::new(file_ms);
+    let _ = enc.encode(&rgbdata, pfm.w, pfm.h);
 }
