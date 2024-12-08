@@ -1,22 +1,10 @@
 type Real = f32;
-const PI: Real = std::f32::consts::PI;
+type Rgb = image::Rgb<Real>;
 
-pub trait Image {
-    fn new(w: usize, h: usize) -> Self;
-    fn w(&self) -> usize;
-    fn h(&self) -> usize;
-    fn get(&self, uv: &[Real; 2]) -> [Real; 3];
-    fn set(&mut self, uv: &[Real; 2], color: &[Real; 3]);
-
-    fn get_p(&self, uv: &[usize; 2]) -> [Real; 3] {
-        let p = pixel2texpair(uv[0], uv[1], self.w(), self.h());
-        self.get(&p)
-    }
-    fn set_p(&mut self, uv: &[usize; 2], color: &[Real; 3]) {
-        let p = pixel2texpair(uv[0], uv[1], self.w(), self.h());
-        self.set(&p, color)
-    }
-}
+use image::Pixel;
+use rayon::iter::IndexedParallelIterator;
+use rayon::iter::IntoParallelRefMutIterator;
+use rayon::iter::ParallelIterator;
 
 pub fn roundi(f: Real) -> i32 {
     (f + 0.5) as i32
@@ -40,6 +28,122 @@ pub fn pixel2texpair(x: usize, y: usize, w: usize, h: usize) -> [Real; 2] {
     [u, v]
 }
 
+pub fn calc_grayscale(img: &Vec<Rgb>, w: usize, h: usize) -> Vec<Rgb> {
+    let iter = |i_pix: usize, pix: &mut Rgb| {
+        let c = img[i_pix];
+        let gray = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]).clamp(0., 1.);
+        pix.0 = [gray; 3];
+    };
+
+    let mut img = vec![*Rgb::from_slice(&[0.; 3]); w * h];
+
+    img.par_iter_mut()
+        .enumerate()
+        .for_each(|(i_pix, pix)| iter(i_pix, pix));
+
+    img
+}
+
+/// col averages stored in (w,1) textrue, row averages in (1,h)
+pub fn calc_avg_col_row(grayscale: &Vec<Rgb>, w: usize, h: usize) -> [Vec<Rgb>; 2] {
+    let iter = |i_pix: usize, pix: &mut Rgb, is_row_avg: bool| {
+        let ext = if is_row_avg { h } else { w };
+
+        let mut avg = 0.;
+        for i in 0..ext {
+            let gray = if is_row_avg {
+                // elements average of i_pix*w-th row
+                grayscale[i_pix * w + i][0]
+            } else {
+                // elements average of i_pix-th column
+                grayscale[i * w + i_pix][0]
+            };
+
+            avg += gray;
+        }
+        avg /= ext as Real;
+        pix.0 = [avg; 3];
+    };
+
+    let mut col_avg_map = vec![*Rgb::from_slice(&[0.; 3]); w];
+    let mut row_avg_map = vec![*Rgb::from_slice(&[0.; 3]); h];
+
+    col_avg_map
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(i_pix, pix)| iter(i_pix, pix, false));
+
+    row_avg_map
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(i_pix, pix)| iter(i_pix, pix, true));
+
+    [col_avg_map, row_avg_map]
+}
+
+/// use tow channels to store cdf^-1 on w and h
+pub fn calc_inverse_cdf_map(envmap: &Vec<Rgb>, w: usize, h: usize) -> Vec<Rgb> {
+    let grayscale = calc_grayscale(envmap, w, h);
+    let avgs = calc_avg_col_row(&grayscale, w, h);
+    let col_avg = &avgs[0];
+    let row_avg = &avgs[1];
+
+    let mut map = vec![*Rgb::from_slice(&[0.; 3]); w * h];
+    let iter = |i_pix: usize, pix: &mut Rgb| {
+        let mut sum = 0.;
+
+        let cur_w = i_pix % w;
+        let cur_h = i_pix / w;
+
+        let mut i_x = 0;
+        let u = pixel2tex(cur_w, w);
+        for i_w in 0..w {
+            // p(w|h) = p(w,h)/p(h) = gray(w,h) / col_avg(w)
+            let c_avg = col_avg[i_w][0]; // col avg of w-th column
+            sum += grayscale[cur_h * w + i_w][0] / (c_avg * w as Real);
+            if sum >= u {
+                i_x = i_w;
+                break;
+            }
+        }
+
+        sum = 0.;
+        let mut i_y = 0;
+        let v = pixel2tex(cur_h, h);
+        for i_h in 0..h {
+            let r_avg = row_avg[i_h][0]; // row avg of h-th row
+            sum += grayscale[w * i_h + cur_w][0] / (r_avg * h as Real);
+            if sum >= v {
+                i_y = i_h;
+                break;
+            }
+        }
+
+        let invtex = pixel2texpair(i_x, i_y, w, h);
+        pix.0 = [invtex[0], invtex[1], 0.];
+    };
+
+    map.par_iter_mut()
+        .enumerate()
+        .for_each(|(i_pix, pix)| iter(i_pix, pix));
+
+    map
+}
+
+pub fn calc_integral_over_grayscale(grayscale: &Vec<Rgb>, w: usize, h: usize) -> Real {
+    let mut sum = 0.;
+
+    for i_h in 0..h {
+        for i_w in 0..w {
+            let c = grayscale[i_w + i_h * w][0];
+            sum += c;
+        }
+    }
+
+    sum /= (w * h) as Real;
+    sum
+}
+
 pub fn unitsphere2envmap(d: &[f32; 3]) -> [Real; 2] {
     let x = d[0].abs();
     let y = d[1].abs();
@@ -57,6 +161,8 @@ pub fn unitsphere2envmap(d: &[f32; 3]) -> [Real; 2] {
 
 // https://github.com/mmp/pbrt-v4/blob/1ae72cfa7344e79a7815a21ed3da746cdccee59b/src/pbrt/util/math.cpp#L292
 pub fn envmap2unitsphere(p: &[Real; 2]) -> [Real; 3] {
+    use std::f32::consts::PI;
+
     // map [0,1] to [-1,1]
     let u = 2. * p[0] - 1.;
     let v = 2. * p[1] - 1.;
@@ -74,129 +180,6 @@ pub fn envmap2unitsphere(p: &[Real; 2]) -> [Real; 3] {
     let y = sinphi * r * (2. - r * r).sqrt();
 
     [x, y, z]
-}
-
-pub fn calc_grayscale<T>(img: &T) -> T
-where
-    T: Image,
-{
-    let w = img.w();
-    let h = img.h();
-    let mut grayscale = T::new(w, h);
-
-    for i_h in 0..h {
-        for i_w in 0..w {
-            let p = [i_w, i_h];
-            let c = img.get_p(&p);
-            let gray = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]).clamp(0., 1.);
-            grayscale.set_p(&p, &[gray, gray, gray]);
-        }
-    }
-
-    grayscale
-}
-
-pub fn calc_integral_over_grayscale<T>(gray_img: &T) -> Real
-where
-    T: Image,
-{
-    let w = gray_img.w();
-    let h = gray_img.h();
-
-    let mut sum = 0.;
-
-    for i_h in 0..h {
-        for i_w in 0..w {
-            let c = gray_img.get_p(&[i_w, i_h])[0];
-            sum += c;
-        }
-    }
-
-    sum /= (w * h) as Real;
-    sum
-}
-
-pub fn calc_avg_col_row<T>(grayscale: &T) -> [T; 2]
-where
-    T: Image,
-{
-    let w = grayscale.w();
-    let h = grayscale.h();
-    let mut col_avg_map = T::new(w, 1);
-
-    for p_w in 0..w {
-        let mut c_avg = 0.;
-        for p_h in 0..h {
-            let gray = grayscale.get_p(&[p_w, p_h])[0];
-            c_avg += gray;
-        }
-        c_avg /= h as Real;
-        col_avg_map.set_p(&[p_w, 0], &[c_avg; 3]);
-    }
-
-    let mut row_avg_map = T::new(1, h);
-    for p_h in 0..h {
-        let mut r_avg = 0.;
-        for p_w in 0..w {
-            let gray = grayscale.get_p(&[p_w, p_h])[0];
-            r_avg += gray;
-        }
-        r_avg /= w as Real;
-        row_avg_map.set_p(&[0, p_h], &[r_avg; 3]);
-    }
-
-    [col_avg_map, row_avg_map]
-}
-
-/// use tow channels to store cdf^-1 on w and h
-pub fn calc_inverse_cdf_map<T>(envmap: &T) -> T
-where
-    T: Image,
-{
-    let grayscale = calc_grayscale(envmap);
-    let avgs = calc_avg_col_row(&grayscale);
-    let col_avg = &avgs[0];
-    let row_avg = &avgs[1];
-
-    let w = col_avg.w();
-    let h = row_avg.h();
-
-    let mut map = T::new(w, h);
-
-    for p_w in 0..w {
-        for p_h in 0..h {
-            let mut sum = 0.;
-
-            let mut i_x = 0;
-            let u = pixel2tex(p_w, w);
-            for i_w in 0..w {
-                // p(w|h) = p(w,h)/p(h) = gray(w,h) / col_avg(w)
-                let c_avg = col_avg.get_p(&[i_w, 0])[0]; // col avg of w-th column
-                sum += grayscale.get_p(&[i_w, p_h])[0] / (c_avg * w as Real);
-                if sum >= u {
-                    i_x = i_w;
-                    break;
-                }
-            }
-
-            sum = 0.;
-            let mut i_y = 0;
-            let v = pixel2tex(p_h, h);
-            for i_h in 0..h {
-                let r_avg = row_avg.get_p(&[0, p_h])[0]; // row avg of h-th row
-                sum += grayscale.get_p(&[p_w, i_h])[0] / (r_avg * h as Real);
-                if sum >= v {
-                    i_y = i_h;
-                    break;
-                }
-            }
-
-            let invtex = pixel2texpair(i_x, i_y, w, h);
-            map.set_p(&[p_w, p_h], &[invtex[0], invtex[1], 0.]);
-        }
-    }
-
-    map
 }
 
 #[test]
@@ -217,4 +200,92 @@ fn test_sphere_mapping() {
         assert!((dir[1] - udir[1]).abs() < 0.001);
         assert!((dir[2] - udir[2]).abs() < 0.001);
     }
+}
+
+#[test]
+fn test_grayscale() {
+    use crate::pfm::PFM;
+    use itertools::Itertools;
+    let pfm = PFM::read_from("asset/envmap.pfm").unwrap();
+    let rgbdata = pfm
+        .data
+        .chunks(pfm.channels)
+        .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
+        .collect_vec();
+
+    let grayscale = calc_grayscale(&rgbdata, pfm.w, pfm.h);
+    let file_ms = std::fs::File::create("target/04_env_light_grayscale.hdr").unwrap();
+    use image::codecs::hdr::HdrEncoder;
+    let enc = HdrEncoder::new(file_ms);
+    let _ = enc.encode(&grayscale, pfm.w, pfm.h);
+}
+
+#[test]
+fn test_calc_col_row_avg() {
+    use crate::pfm::PFM;
+    use itertools::Itertools;
+    let pfm = PFM::read_from("asset/envmap.pfm").unwrap();
+    let rgbdata = pfm
+        .data
+        .chunks(pfm.channels)
+        .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
+        .collect_vec();
+    let grayscale = calc_grayscale(&rgbdata, pfm.w, pfm.h);
+
+    let avg = calc_avg_col_row(&grayscale, pfm.w, pfm.h);
+
+    use image::codecs::hdr::HdrEncoder;
+
+    let file_ms = std::fs::File::create("target/04_env_light_row_avg.hdr").unwrap();
+    let enc = HdrEncoder::new(file_ms);
+    let _ = enc.encode(&avg[1], 1, pfm.h);
+
+    let file_ms = std::fs::File::create("target/04_env_light_col_avg.hdr").unwrap();
+    let enc = HdrEncoder::new(file_ms);
+    let _ = enc.encode(&avg[0], pfm.w, 1);
+}
+
+#[test]
+fn test_inverse_cdf() {
+    use crate::haltonsampler::HaltonSampler;
+    use crate::pfm::PFM;
+    use crate::sampler::Sampler;
+    use itertools::Itertools;
+    use std::time::Instant;
+
+    let mut sw = Instant::now();
+
+    let pfm = PFM::read_from("asset/envmap.pfm").unwrap();
+    let mut rgbdata = pfm
+        .data
+        .chunks(pfm.channels)
+        .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
+        .collect_vec();
+
+    let invcdfmap = calc_inverse_cdf_map(&rgbdata, pfm.w, pfm.h);
+
+    println!("Build inverse cdf map:{} ms", sw.elapsed().as_millis());
+
+    sw = Instant::now();
+
+    let mut halton = HaltonSampler::new();
+    for i in 0..1024 * 1024 {
+        Sampler::<Real>::set_i(&mut halton, i);
+        Sampler::<Real>::set_dim(&mut halton, 0);
+        let random: [Real; 2] = Sampler::get2d(&mut halton);
+        let r_w = tex2pixel(random[0], pfm.w);
+        let r_h = tex2pixel(random[1], pfm.h);
+        let tex = invcdfmap[r_h * pfm.w + r_w];
+
+        let p_w = tex2pixel(tex[0], pfm.w);
+        let p_h = tex2pixel(tex[1], pfm.h);
+        rgbdata[p_h * pfm.w + p_w] = *Rgb::from_slice(&[1., 0., 0.]);
+    }
+
+    println!("Generate Samples:{} ms", sw.elapsed().as_millis());
+
+    use image::codecs::hdr::HdrEncoder;
+    let file_ms = std::fs::File::create("target/04_env_light_invcdf.hdr").unwrap();
+    let enc = HdrEncoder::new(file_ms);
+    let _ = enc.encode(&rgbdata, pfm.w, pfm.h);
 }

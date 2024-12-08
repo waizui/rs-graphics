@@ -6,4 +6,4 @@ pub mod sampler;
 pub mod sobolmatrices;
 pub mod sobolsampler;
 pub mod util;
-pub mod envmaplight;
+pub mod envmap;

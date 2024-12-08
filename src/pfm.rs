@@ -1,4 +1,4 @@
-use crate::envmaplight::tex2pixel;
+use crate::envmap::tex2pixel;
 use anyhow::anyhow;
 use std::fs::File;
 use std::io::BufReader;
@@ -108,72 +108,50 @@ impl PFM {
 
         Ok(())
     }
-}
 
-// impl crate::envmaplight::Image for PFM {
-//     fn new(w: usize, h: usize) -> Self {
-//         create_image(3, w, h)
-//     }
-//
-//     fn w(&self) -> usize {
-//         self.w
-//     }
-//
-//     fn h(&self) -> usize {
-//         self.h
-//     }
-//
-//     fn get(&self, uv: &[Real; 2]) -> [Real; 3] {
-//         get_color(uv[0], uv[1], self)
-//     }
-//
-//     fn set(&mut self, uv: &[Real; 2], color: &[Real; 3]) {
-//         set_color(color, uv[0], uv[1], self)
-//     }
-// }
+    pub fn get_color(&self, u: Real, v: Real) -> [Real; 3] {
+        let channel = self.channels;
+        let i_w = tex2pixel(u, self.w);
+        let i_h = tex2pixel(v, self.h);
 
-fn get_color(u: Real, v: Real, img: &PFM) -> [Real; 3] {
-    let channel = img.channels;
-    let i_w = tex2pixel(u, img.w);
-    let i_h = tex2pixel(v, img.h);
-
-    let i = channel * (i_h * img.w + i_w);
-    if channel == 3 {
-        let r = img.data[i];
-        let g = img.data[i + 1];
-        let b = img.data[i + 2];
-        [r, g, b]
-    } else if channel == 1 {
-        let g = img.data[i];
-        [g; 3]
-    } else {
-        panic!("Invalid channel");
+        let i = channel * (i_h * self.w + i_w);
+        if channel == 3 {
+            let r = self.data[i];
+            let g = self.data[i + 1];
+            let b = self.data[i + 2];
+            [r, g, b]
+        } else if channel == 1 {
+            let g = self.data[i];
+            [g; 3]
+        } else {
+            panic!("Invalid channel");
+        }
     }
-}
 
-fn set_color(col: &[Real; 3], u: Real, v: Real, img: &mut PFM) {
-    let channel = img.channels;
-    let i_w = tex2pixel(u, img.w);
-    let i_h = tex2pixel(v, img.h);
+    pub fn set_color(&mut self, col: &[Real; 3], u: Real, v: Real) {
+        let channel = self.channels;
+        let i_w = tex2pixel(u, self.w);
+        let i_h = tex2pixel(v, self.h);
 
-    let i = channel * (i_h * img.w + i_w);
-    if channel == 3 {
-        img.data[i] = col[0];
-        img.data[i + 1] = col[1];
-        img.data[i + 2] = col[2];
-    } else if channel == 1 {
-        img.data[i] = col[0];
-    } else {
-        panic!("Invalid channel");
+        let i = channel * (i_h * self.w + i_w);
+        if channel == 3 {
+            self.data[i] = col[0];
+            self.data[i + 1] = col[1];
+            self.data[i + 2] = col[2];
+        } else if channel == 1 {
+            self.data[i] = col[0];
+        } else {
+            panic!("Invalid channel");
+        }
     }
-}
 
-fn create_image(channels: usize, w: usize, h: usize) -> PFM {
-    PFM {
-        data: vec![0.; w * h * channels],
-        w,
-        h,
-        channels,
-        little_endian: false,
+    pub fn create_image(channels: usize, w: usize, h: usize) -> PFM {
+        PFM {
+            data: vec![0.; w * h * channels],
+            w,
+            h,
+            channels,
+            little_endian: false,
+        }
     }
 }
