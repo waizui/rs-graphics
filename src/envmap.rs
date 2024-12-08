@@ -88,6 +88,8 @@ pub fn calc_inverse_cdf_map(envmap: &Vec<Rgb>, w: usize, h: usize) -> Vec<Rgb> {
     let col_avg = &avgs[0];
     let row_avg = &avgs[1];
 
+    //TODO: inverse cdf bug of marginal pdf
+
     let mut map = vec![*Rgb::from_slice(&[0.; 3]); w * h];
     let iter = |i_pix: usize, pix: &mut Rgb| {
         let mut sum = 0.;
@@ -255,31 +257,33 @@ fn test_inverse_cdf() {
 
     let mut sw = Instant::now();
 
-    let pfm = PFM::read_from("asset/envmap.pfm").unwrap();
+    let pfm = PFM::read_from("asset/envmap1.pfm").unwrap();
+    let w = pfm.w;
+    let h = pfm.h;
     let mut rgbdata = pfm
         .data
         .chunks(pfm.channels)
         .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
         .collect_vec();
 
-    let invcdfmap = calc_inverse_cdf_map(&rgbdata, pfm.w, pfm.h);
+    let invcdfmap = calc_inverse_cdf_map(&rgbdata, w, h);
 
     println!("Build inverse cdf map:{} ms", sw.elapsed().as_millis());
 
     sw = Instant::now();
 
     let mut halton = HaltonSampler::new();
-    for i in 0..1024 * 1024 {
+    for i in 0..2048 * 1024 {
         Sampler::<Real>::set_i(&mut halton, i);
         Sampler::<Real>::set_dim(&mut halton, 0);
         let random: [Real; 2] = Sampler::get2d(&mut halton);
-        let r_w = tex2pixel(random[0], pfm.w);
-        let r_h = tex2pixel(random[1], pfm.h);
-        let tex = invcdfmap[r_h * pfm.w + r_w];
+        let r_w = tex2pixel(random[0], w);
+        let r_h = tex2pixel(random[1], h);
+        let tex = invcdfmap[r_h * w + r_w];
 
-        let p_w = tex2pixel(tex[0], pfm.w);
-        let p_h = tex2pixel(tex[1], pfm.h);
-        rgbdata[p_h * pfm.w + p_w] = *Rgb::from_slice(&[1., 0., 0.]);
+        let p_w = tex2pixel(tex[0], w);
+        let p_h = tex2pixel(tex[1], h);
+        rgbdata[p_h * w + p_w] = *Rgb::from_slice(&[1., 0., 0.]);
     }
 
     println!("Generate Samples:{} ms", sw.elapsed().as_millis());
@@ -287,5 +291,5 @@ fn test_inverse_cdf() {
     use image::codecs::hdr::HdrEncoder;
     let file_ms = std::fs::File::create("target/04_env_light_invcdf.hdr").unwrap();
     let enc = HdrEncoder::new(file_ms);
-    let _ = enc.encode(&rgbdata, pfm.w, pfm.h);
+    let _ = enc.encode(&rgbdata, w, h);
 }
