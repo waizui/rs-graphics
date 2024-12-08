@@ -44,20 +44,21 @@ pub fn calc_grayscale(img: &Vec<Rgb>, w: usize, h: usize) -> Vec<Rgb> {
     img
 }
 
+/// col averages stored in (w,1) textrue, row averages in (1,h)
 pub fn calc_avg_col_row(grayscale: &Vec<Rgb>, w: usize, h: usize) -> [Vec<Rgb>; 2] {
-    let iter = |i_pix: usize, pix: &mut Rgb, is_row: bool| {
-        let (stride, ext) = if is_row {
-            // calculate column averages for a row
-            // march w element to get same column element in next row
-            (w, h)
-        } else {
-            // get next element in same row
-            (1, w)
-        };
+    let iter = |i_pix: usize, pix: &mut Rgb, is_row_avg: bool| {
+        let ext = if is_row_avg { h } else { w };
 
         let mut avg = 0.;
         for i in 0..ext {
-            let gray = grayscale[i_pix + i * stride][0];
+            let gray = if is_row_avg {
+                // elements average of i_pix*w-th row
+                grayscale[i_pix * w + i][0]
+            } else {
+                // elements average of i_pix-th column
+                grayscale[i * w + i_pix][0]
+            };
+
             avg += gray;
         }
         avg /= ext as Real;
@@ -75,7 +76,7 @@ pub fn calc_avg_col_row(grayscale: &Vec<Rgb>, w: usize, h: usize) -> [Vec<Rgb>; 
     row_avg_map
         .par_iter_mut()
         .enumerate()
-        .for_each(|(i_pix, pix)| iter(i_pix, pix, false));
+        .for_each(|(i_pix, pix)| iter(i_pix, pix, true));
 
     [col_avg_map, row_avg_map]
 }
@@ -111,7 +112,7 @@ pub fn calc_inverse_cdf_map(envmap: &Vec<Rgb>, w: usize, h: usize) -> Vec<Rgb> {
         let v = pixel2tex(cur_h, h);
         for i_h in 0..h {
             let r_avg = row_avg[i_h][0]; // row avg of h-th row
-            sum += grayscale[w * i_h + cur_h][0] / (r_avg * h as Real);
+            sum += grayscale[w * i_h + cur_w][0] / (r_avg * h as Real);
             if sum >= v {
                 i_y = i_h;
                 break;
@@ -163,13 +164,13 @@ fn test_calc_col_row_avg() {
 
     use image::codecs::hdr::HdrEncoder;
 
-    let file_ms = std::fs::File::create("target/04_env_light_col_avg.hdr").unwrap();
-    let enc = HdrEncoder::new(file_ms);
-    let _ = enc.encode(&avg[0], 1, pfm.h);
-
     let file_ms = std::fs::File::create("target/04_env_light_row_avg.hdr").unwrap();
     let enc = HdrEncoder::new(file_ms);
-    let _ = enc.encode(&avg[1], pfm.w, 1);
+    let _ = enc.encode(&avg[1], 1, pfm.h);
+
+    let file_ms = std::fs::File::create("target/04_env_light_col_avg.hdr").unwrap();
+    let enc = HdrEncoder::new(file_ms);
+    let _ = enc.encode(&avg[0], pfm.w, 1);
 }
 
 #[test]
