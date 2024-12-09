@@ -17,3 +17,9 @@
 
 **With Digit Permutaion randomization**
 ![halton](./docs/halton_256_permute.png)
+
+
+
+## Sampling environment light
+
+![light](./docs/sampling_env.png)
