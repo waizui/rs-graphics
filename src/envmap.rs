@@ -47,7 +47,7 @@ pub fn calc_grayscale(img: &Vec<Rgb>, w: usize, h: usize) -> Vec<Rgb> {
 /// col averages stored in (w,1) textrue, row averages in (1,h)
 pub fn calc_avg_col_row(grayscale: &Vec<Rgb>, w: usize, h: usize) -> [Vec<Rgb>; 2] {
     let iter = |i_pix: usize, pix: &mut Rgb, is_row_avg: bool| {
-        let ext = if is_row_avg { h } else { w };
+        let ext = if is_row_avg { w } else { h };
 
         let mut avg = 0.;
         for i in 0..ext {
