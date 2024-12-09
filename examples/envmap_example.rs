@@ -76,7 +76,7 @@ fn main() {
 
             result = del_geo_core::vec3::add(&result, &radiance);
         }
-        del_geo_core::vec3::scale(&mut result, (4.) / nsamples as Real);
+        del_geo_core::vec3::scale(&mut result, PI / nsamples as Real);
 
         pix.0 = result;
     };
