@@ -1,8 +1,7 @@
-use rs_sampler::envmap;
 use rs_sampler::pfm::PFM;
 use rs_sampler::{
-    envmap::envmap2unitsphere, envmap::pixel2tex, envmap::pixel2texpair, envmap::tex2pixel,
-    envmap::unitsphere2envmap, haltonsampler::HaltonSampler, sampler::Sampler,
+    envmap::envmap2unitsphere, envmap::pixel2texpair, envmap::tex2pixel,
+    haltonsampler::HaltonSampler, sampler::Sampler,
 };
 
 type Real = f32;
@@ -15,15 +14,12 @@ fn main() {
     use rayon::iter::IndexedParallelIterator;
     use rayon::iter::IntoParallelRefMutIterator;
     use rayon::iter::ParallelIterator;
-    use std::time::Instant;
-
-    let mut sw = Instant::now();
 
     let pfm = PFM::read_from("asset/envmap.pfm").unwrap();
     let w = pfm.w;
     let h = pfm.h;
 
-    let mut rgbdata = pfm
+    let rgbdata = pfm
         .data
         .chunks(pfm.channels)
         .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
@@ -80,7 +76,7 @@ fn main() {
 
             result = del_geo_core::vec3::add(&result, &radiance);
         }
-        del_geo_core::vec3::scale(&mut result, (1. * 2. * PI) / nsamples as Real);
+        del_geo_core::vec3::scale(&mut result, (4.) / nsamples as Real);
 
         pix.0 = result;
     };
