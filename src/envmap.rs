@@ -82,16 +82,38 @@ pub fn calc_avg_col_row(grayscale: &Vec<Rgb>, w: usize, h: usize) -> [Vec<Rgb>; 
 }
 
 /// use tow channels to store cdf^-1 on w and h
-pub fn calc_inverse_cdf_map(envmap: &Vec<Rgb>, w: usize, h: usize) -> Vec<Rgb> {
+pub fn calc_inverse_cdf_map(envmap: &Vec<Rgb>, w: usize, h: usize) -> (Vec<Rgb>, Vec<Rgb>) {
     let grayscale = calc_grayscale(envmap, w, h);
     let avgs = calc_avg_col_row(&grayscale, w, h);
-    let col_avg = &avgs[0];
-    let row_avg = &avgs[1];
+    let itgr = calc_integral_over_grayscale(&grayscale, w, h);
+    let avg = &avgs[1];
 
-    //TODO: inverse cdf bug of marginal pdf
+    let build_marginal_map = |i_pix: usize, pix: &mut Rgb| {
+        let cur_h = i_pix;
+        let mut sum = 0.;
+        let mut i_y = 0;
+        let v = pixel2tex(cur_h, h);
+        for i_h in 0..h {
+            // row_avg(h)/itgr
+            sum += avg[i_h][0] / (h as Real * itgr);
+            if sum >= v {
+                i_y = i_h;
+                break;
+            }
+        }
 
-    let mut map = vec![*Rgb::from_slice(&[0.; 3]); w * h];
-    let iter = |i_pix: usize, pix: &mut Rgb| {
+        let invy = pixel2tex(i_y, h);
+        pix.0 = [invy; 3];
+    };
+
+    let mut marginal_map = vec![*Rgb::from_slice(&[0.; 3]); h];
+    marginal_map
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(i_pix, pix)| build_marginal_map(i_pix, pix));
+
+    let mut conditinal_map = vec![*Rgb::from_slice(&[0.; 3]); w * h];
+    let build_conditional_map = |i_pix: usize, pix: &mut Rgb| {
         let mut sum = 0.;
 
         let cur_w = i_pix % w;
@@ -100,36 +122,25 @@ pub fn calc_inverse_cdf_map(envmap: &Vec<Rgb>, w: usize, h: usize) -> Vec<Rgb> {
         let mut i_x = 0;
         let u = pixel2tex(cur_w, w);
         for i_w in 0..w {
-            // p(w|h) = p(w,h)/p(h) = gray(w,h) / col_avg(w)
-            let c_avg = col_avg[i_w][0]; // col avg of w-th column
-            sum += grayscale[cur_h * w + i_w][0] / (c_avg * w as Real);
+            // p(w|h) = p(w,h)/p(h) = gray(w,h) / row_avg(w)
+            let avg = avg[cur_h][0];
+            sum += grayscale[cur_h * w + i_w][0] / (avg * w as Real);
             if sum >= u {
                 i_x = i_w;
                 break;
             }
         }
 
-        sum = 0.;
-        let mut i_y = 0;
-        let v = pixel2tex(cur_h, h);
-        for i_h in 0..h {
-            let r_avg = row_avg[i_h][0]; // row avg of h-th row
-            sum += grayscale[w * i_h + cur_w][0] / (r_avg * h as Real);
-            if sum >= v {
-                i_y = i_h;
-                break;
-            }
-        }
-
-        let invtex = pixel2texpair(i_x, i_y, w, h);
-        pix.0 = [invtex[0], invtex[1], 0.];
+        let invx = pixel2tex(i_x, w);
+        pix.0 = [invx; 3];
     };
 
-    map.par_iter_mut()
+    conditinal_map
+        .par_iter_mut()
         .enumerate()
-        .for_each(|(i_pix, pix)| iter(i_pix, pix));
+        .for_each(|(i_pix, pix)| build_conditional_map(i_pix, pix));
 
-    map
+    (marginal_map, conditinal_map)
 }
 
 pub fn calc_integral_over_grayscale(grayscale: &Vec<Rgb>, w: usize, h: usize) -> Real {
@@ -257,7 +268,7 @@ fn test_inverse_cdf() {
 
     let mut sw = Instant::now();
 
-    let pfm = PFM::read_from("asset/envmap1.pfm").unwrap();
+    let pfm = PFM::read_from("asset/envmap.pfm").unwrap();
     let w = pfm.w;
     let h = pfm.h;
     let mut rgbdata = pfm
@@ -266,23 +277,25 @@ fn test_inverse_cdf() {
         .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
         .collect_vec();
 
-    let invcdfmap = calc_inverse_cdf_map(&rgbdata, w, h);
+    let (marginal_map, conditional_map) = calc_inverse_cdf_map(&rgbdata, w, h);
 
     println!("Build inverse cdf map:{} ms", sw.elapsed().as_millis());
 
     sw = Instant::now();
 
     let mut halton = HaltonSampler::new();
-    for i in 0..2048 * 1024 {
+    for i in 0..1024 * 1024 {
         Sampler::<Real>::set_i(&mut halton, i);
         Sampler::<Real>::set_dim(&mut halton, 0);
         let random: [Real; 2] = Sampler::get2d(&mut halton);
         let r_w = tex2pixel(random[0], w);
         let r_h = tex2pixel(random[1], h);
-        let tex = invcdfmap[r_h * w + r_w];
 
-        let p_w = tex2pixel(tex[0], w);
-        let p_h = tex2pixel(tex[1], h);
+        let sampley = marginal_map[r_h][0];
+        let samplex = conditional_map[r_w + tex2pixel(sampley, h) * w][0];
+
+        let p_w = tex2pixel(samplex, w);
+        let p_h = tex2pixel(sampley, h);
         rgbdata[p_h * w + p_w] = *Rgb::from_slice(&[1., 0., 0.]);
     }
 
