@@ -38,7 +38,7 @@ fn main() {
 
     let iter = |i_pix: usize, pix: &mut Rgb| {
         let mut halton = HaltonSampler::new();
-        let nsamples = 32;
+        let nsamples = 128;
         let i_w = i_pix % w;
         let i_h = i_pix / w;
 
@@ -46,49 +46,41 @@ fn main() {
         let nrm = envmap2unitsphere(&tex);
 
         let mut result = [0.; 3];
-        // for i in 0..nsamples {
-        //     Sampler::<Real>::set_i(&mut halton, i + 1);
-        //     Sampler::<Real>::set_dim(&mut halton, 0);
-        //     let random: [Real; 2] = halton.get2d();
-        //
-        //     let r_w = tex2pixel(random[0], w);
-        //     let r_h = tex2pixel(random[1], h);
-        //
-        //     let sampley = marginal_map[r_h][0];
-        //     let samplex = conditional_map[r_w + tex2pixel(sampley, h) * w][0];
-        //
-        //     let p_w = tex2pixel(samplex, w);
-        //     let p_h = tex2pixel(sampley, h);
-        //
-        //     let radiance = rgbdata[p_h * w + p_w].0;
-        //
-        //     let ray_dir = envmap2unitsphere(&[samplex, sampley]);
-        //     let costheta = del_geo_core::vec3::dot(&nrm, &ray_dir);
-        //
-        //     if costheta < 0. {
-        //         continue;
-        //     }
-        //
-        //     let sintheta = (1. - costheta * costheta).sqrt();
-        //
-        //     let pdf = grayscale[p_h * w + p_w][0] / itgr;
-        //
-        //     del_geo_core::vec3::scale(&mut result, costheta);
-        //     del_geo_core::vec3::scale(&mut result, sintheta);
-        //     del_geo_core::vec3::scale(&mut result, 1. / pdf);
-        //
-        //     result = del_geo_core::vec3::add(&result, &radiance);
-        // }
 
-        let ray_dir = envmap2unitsphere(&tex);
-        let norm = del_geo_core::vec3::norm(&ray_dir);
-        if norm != 0. {
-            let p_w = tex2pixel((ray_dir[0] / norm + 1.) / 2., w);
-            let p_h = tex2pixel((ray_dir[1] / norm + 1.) / 2., h);
-            result = rgbdata[p_h * w + p_w].0;
+        for i in 0..nsamples {
+            Sampler::<Real>::set_i(&mut halton, i + 1);
+            Sampler::<Real>::set_dim(&mut halton, 0);
+            let random: [Real; 2] = halton.get2d();
+
+            let r_w = tex2pixel(random[0], w);
+            let r_h = tex2pixel(random[1], h);
+
+            let sampley = marginal_map[r_h][0];
+            let samplex = conditional_map[r_w + tex2pixel(sampley, h) * w][0];
+
+            let p_w = tex2pixel(samplex, w);
+            let p_h = tex2pixel(sampley, h);
+
+            let mut radiance = rgbdata[p_h * w + p_w].0;
+
+            let ray_dir = envmap2unitsphere(&[samplex, sampley]);
+            let costheta = del_geo_core::vec3::dot(&nrm, &ray_dir);
+
+            if costheta < 0. {
+                continue;
+            }
+
+            let sintheta = (1. - costheta * costheta).sqrt();
+
+            let pdf = grayscale[p_h * w + p_w][0] / itgr;
+
+            del_geo_core::vec3::scale(&mut radiance, costheta);
+            del_geo_core::vec3::scale(&mut radiance, sintheta);
+            del_geo_core::vec3::scale(&mut radiance, 1. / pdf);
+
+            result = del_geo_core::vec3::add(&result, &radiance);
         }
-
-        // del_geo_core::vec3::scale(&mut result, (1. * 2. * PI) / nsamples as Real);
+        del_geo_core::vec3::scale(&mut result, (1. * 2. * PI) / nsamples as Real);
 
         pix.0 = result;
     };
