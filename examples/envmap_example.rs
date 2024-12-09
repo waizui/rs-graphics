@@ -29,6 +29,9 @@ fn main() {
         .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
         .collect_vec();
 
+    let grayscale = rs_sampler::envmap::calc_grayscale(&rgbdata, w, h);
+    let itgr = rs_sampler::envmap::calc_integral_over_grayscale(&grayscale, w, h);
+
     let (marginal_map, conditional_map) = rs_sampler::envmap::calc_inverse_cdf_map(&rgbdata, w, h);
 
     let mut img = vec![*Rgb::from_slice(&[0.; 3]); w * h];
@@ -66,10 +69,18 @@ fn main() {
                 continue;
             }
 
+            let sintheta = (1. - costheta * costheta).sqrt();
+
+            let pdf = grayscale[p_h * w + p_w][0] / itgr;
+
+            del_geo_core::vec3::scale(&mut result, costheta);
+            del_geo_core::vec3::scale(&mut result, sintheta);
+            del_geo_core::vec3::scale(&mut result, 1. / pdf);
+
             result = del_geo_core::vec3::add(&result, &radiance);
         }
 
-        del_geo_core::vec3::scale(&mut result, 1. / nsamples as Real);
+        del_geo_core::vec3::scale(&mut result, (1. * 2. * PI) / nsamples as Real);
 
         pix.0 = result;
     };
