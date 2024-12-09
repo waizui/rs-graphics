@@ -1,85 +1,85 @@
-// use std::time::Instant;
+use rs_sampler::envmap;
+use rs_sampler::pfm::PFM;
+use rs_sampler::{
+    envmap::envmap2unitsphere, envmap::pixel2tex, envmap::pixel2texpair, envmap::tex2pixel,
+    envmap::unitsphere2envmap, haltonsampler::HaltonSampler, sampler::Sampler,
+};
 
-// use rs_sampler::envmap;
-// use rs_sampler::{
-//     envmap::pixel2texpair, envmap::tex2pixel, envmap::Image, haltonsampler::HaltonSampler,
-//     sampler::Sampler,
-// };
-
-// use rs_sampler::pfm::PFM;
-
-// type Real = f32;
-// const PI: Real = std::f32::consts::PI;
-//
-// fn binary_find_inv_cdf() -> Real {
-//     todo!()
-// }
-
-// fn sample_light(grayscale: &Image, envmap: &Image) -> Image {
-//     let w = 64;
-//     let h = 64;
-//
-//     let debug = false;
-//
-//     let mut img = create_image(3, w, h);
-//
-//     let mut halton = HaltonSampler::new();
-//     let itgr = calc_integral_over_grayscale(grayscale);
-//
-//     let nsamples = 128;
-//     for i_w in 0..w {
-//         for i_h in 0..h {
-//             // screen coord to world
-//             let tex = pixel2tex(i_w, i_h, w, h);
-//             let nrm = envmap2unitsphere(&tex);
-//
-//             let mut resut = [0.; 3];
-//             for i in 0..nsamples {
-//                 Sampler::<Real>::set_i(&mut halton, i + 1);
-//                 Sampler::<Real>::set_dim(&mut halton, 0);
-//                 let random: [Real; 2] = halton.get2d();
-//                 // sampling position
-//                 let coord_pfd = calc_sample_coord(random[0], random[1], grayscale, itgr);
-//                 let st = coord_pfd.0;
-//                 let pdf = coord_pfd.1;
-//                 let s_tex_coord = pixel2tex(st[0], st[1], grayscale.w, grayscale.h);
-//                 // sampling ray direction
-//                 let raydir = envmap2unitsphere(&s_tex_coord);
-//                 let radiance = get_color(s_tex_coord[0], s_tex_coord[1], envmap);
-//                 if debug {
-//                     set_color(&[1., 0., 0.], s_tex_coord[0], s_tex_coord[1], &mut img);
-//                 } else {
-//                     let costheta = del_geo_core::vec3::dot(&raydir, &nrm);
-//                     if costheta > 0. && pdf > 0. {
-//                         let sintheta = (1. - raydir[2] * raydir[2]).sqrt();
-//                         let mut color = [PI * 2.; 3]; //Jacobian TODO:replace with correct term
-//                         color[0] *= radiance[0];
-//                         color[1] *= radiance[1];
-//                         color[2] *= radiance[2];
-//                         del_geo_core::vec3::scale(&mut color, costheta);
-//                         del_geo_core::vec3::scale(&mut color, sintheta);
-//                         del_geo_core::vec3::scale(&mut color, 1. / pdf);
-//                         resut = del_geo_core::vec3::add(&resut, &radiance);
-//                     }
-//                 }
-//             }
-//
-//             if debug {
-//                 let color = get_color(tex[0], tex[1], &img);
-//                 if color[0] < 1. {
-//                     let tex_color = get_color(tex[0], tex[1], envmap);
-//                     set_color(&tex_color, tex[0], tex[1], &mut img);
-//                 }
-//             } else {
-//                 del_geo_core::vec3::scale(&mut resut, 1. / (nsamples as Real));
-//                 set_color(&resut, tex[0], tex[1], &mut img);
-//             }
-//         }
-//     }
-//
-//     img
-// }
+type Real = f32;
+const PI: Real = std::f32::consts::PI;
+type Rgb = image::Rgb<Real>;
 
 fn main() {
-    todo!();
+    use image::Pixel;
+    use itertools::Itertools;
+    use rayon::iter::IndexedParallelIterator;
+    use rayon::iter::IntoParallelRefMutIterator;
+    use rayon::iter::ParallelIterator;
+    use std::time::Instant;
+
+    let mut sw = Instant::now();
+
+    let pfm = PFM::read_from("asset/envmap.pfm").unwrap();
+    let w = pfm.w;
+    let h = pfm.h;
+
+    let mut rgbdata = pfm
+        .data
+        .chunks(pfm.channels)
+        .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
+        .collect_vec();
+
+    let (marginal_map, conditional_map) = rs_sampler::envmap::calc_inverse_cdf_map(&rgbdata, w, h);
+
+    let mut img = vec![*Rgb::from_slice(&[0.; 3]); w * h];
+
+    let iter = |i_pix: usize, pix: &mut Rgb| {
+        let mut halton = HaltonSampler::new();
+        let nsamples = 32;
+        let i_w = i_pix % w;
+        let i_h = i_pix / w;
+
+        let tex = pixel2texpair(i_w, i_h, w, h);
+        let nrm = envmap2unitsphere(&tex);
+
+        let mut result = [0.; 3];
+        for i in 0..nsamples {
+            Sampler::<Real>::set_i(&mut halton, i + 1);
+            Sampler::<Real>::set_dim(&mut halton, 0);
+            let random: [Real; 2] = halton.get2d();
+
+            let r_w = tex2pixel(random[0], w);
+            let r_h = tex2pixel(random[1], h);
+
+            let sampley = marginal_map[r_h][0];
+            let samplex = conditional_map[r_w + tex2pixel(sampley, h) * w][0];
+
+            let p_w = tex2pixel(samplex, w);
+            let p_h = tex2pixel(sampley, h);
+
+            let radiance = rgbdata[p_h * w + p_w].0;
+
+            let ray_dir = envmap2unitsphere(&[samplex, sampley]);
+            let costheta = del_geo_core::vec3::dot(&nrm, &ray_dir);
+
+            if costheta < 0. {
+                continue;
+            }
+
+            result = del_geo_core::vec3::add(&result, &radiance);
+        }
+
+        del_geo_core::vec3::scale(&mut result, 1. / nsamples as Real);
+
+        pix.0 = result;
+    };
+
+    img.par_iter_mut()
+        .enumerate()
+        .for_each(|(i_pix, pix)| iter(i_pix, pix));
+
+    use image::codecs::hdr::HdrEncoder;
+    let file_ms = std::fs::File::create("target/04_env_light_sampling.hdr").unwrap();
+    let enc = HdrEncoder::new(file_ms);
+    let _ = enc.encode(&img, w, h);
 }
