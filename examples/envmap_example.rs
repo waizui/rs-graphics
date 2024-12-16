@@ -33,10 +33,10 @@ fn main() {
 
     let iter = |i_pix: usize, pix: &mut Rgb| {
         let mut halton = HaltonSampler::new();
-        let nsamples = 128;
+        let nsamples = 64;
         let i_w = i_pix % w;
-        let i_h = w - 1 - i_pix / w; // top-left to bottom-left
-
+        // top-left to bottom-left
+        let i_h = w - 1 - i_pix / w;
         let tex = pixel2texpair(i_w, i_h, w, h);
         let nrm = envmap2unitsphere(&tex);
 
@@ -57,22 +57,14 @@ fn main() {
             let p_h = tex2pixel(sampley, h);
 
             let mut radiance = rgbdata[p_h * w + p_w].0;
-
             let ray_dir = envmap2unitsphere(&[samplex, sampley]);
             let costheta = del_geo_core::vec3::dot(&nrm, &ray_dir);
-
-            if costheta < 0. {
+            let pdf = grayscale[p_h * w + p_w][0] / itgr;
+            if costheta <= 0. || pdf <= 0. {
                 continue;
             }
 
-            let sintheta = (1. - costheta * costheta).sqrt();
-
-            let pdf = grayscale[p_h * w + p_w][0] / itgr;
-
-            del_geo_core::vec3::scale(&mut radiance, costheta);
-            del_geo_core::vec3::scale(&mut radiance, sintheta);
-            del_geo_core::vec3::scale(&mut radiance, 1. / pdf);
-
+            del_geo_core::vec3::scale(&mut radiance, costheta / pdf);
             result = del_geo_core::vec3::add(&result, &radiance);
         }
         del_geo_core::vec3::scale(&mut result, 4. / nsamples as Real);
@@ -85,7 +77,7 @@ fn main() {
         .for_each(|(i_pix, pix)| iter(i_pix, pix));
 
     use image::codecs::hdr::HdrEncoder;
-    let file_ms = std::fs::File::create("target/04_env_light_sampling.hdr").unwrap();
+    let file_ms = std::fs::File::create("target/envmap_light_sampling.hdr").unwrap();
     let enc = HdrEncoder::new(file_ms);
     let _ = enc.encode(&img, w, h);
 }

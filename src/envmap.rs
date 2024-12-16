@@ -31,7 +31,7 @@ pub fn pixel2texpair(x: usize, y: usize, w: usize, h: usize) -> [Real; 2] {
 pub fn calc_grayscale(img: &[Rgb], w: usize, h: usize) -> Vec<Rgb> {
     let iter = |i_pix: usize, pix: &mut Rgb| {
         let c = img[i_pix];
-        let gray = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]).clamp(0., 1.);
+        let gray = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
         pix.0 = [gray; 3];
     };
 
@@ -230,7 +230,7 @@ fn test_grayscale() {
         .collect_vec();
 
     let grayscale = calc_grayscale(&rgbdata, pfm.w, pfm.h);
-    let file_ms = std::fs::File::create("target/04_env_light_grayscale.hdr").unwrap();
+    let file_ms = std::fs::File::create("target/envmap_light_grayscale.hdr").unwrap();
     use image::codecs::hdr::HdrEncoder;
     let enc = HdrEncoder::new(file_ms);
     let _ = enc.encode(&grayscale, pfm.w, pfm.h);
@@ -252,11 +252,11 @@ fn test_calc_col_row_avg() {
 
     use image::codecs::hdr::HdrEncoder;
 
-    let file_ms = std::fs::File::create("target/04_env_light_row_avg.hdr").unwrap();
+    let file_ms = std::fs::File::create("target/envmap_light_row_avg.hdr").unwrap();
     let enc = HdrEncoder::new(file_ms);
     let _ = enc.encode(&avg[1], 1, pfm.h);
 
-    let file_ms = std::fs::File::create("target/04_env_light_col_avg.hdr").unwrap();
+    let file_ms = std::fs::File::create("target/envmap_light_col_avg.hdr").unwrap();
     let enc = HdrEncoder::new(file_ms);
     let _ = enc.encode(&avg[0], pfm.w, 1);
 }
@@ -307,7 +307,7 @@ fn test_inverse_cdf() {
     println!("Generate Samples:{} ms", sw.elapsed().as_millis());
 
     use image::codecs::hdr::HdrEncoder;
-    let file_ms = std::fs::File::create("target/04_env_light_invcdf.hdr").unwrap();
+    let file_ms = std::fs::File::create("target/envmap_light_invcdf.hdr").unwrap();
     let enc = HdrEncoder::new(file_ms);
     let _ = enc.encode(&rgbdata, w, h);
 }
