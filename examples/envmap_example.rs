@@ -5,7 +5,6 @@ use rs_sampler::{
 };
 
 type Real = f32;
-const PI: Real = std::f32::consts::PI;
 type Rgb = image::Rgb<Real>;
 
 fn main() {
@@ -27,8 +26,8 @@ fn main() {
 
     let grayscale = rs_sampler::envmap::calc_grayscale(&rgbdata, w, h);
     let itgr = rs_sampler::envmap::calc_integral_over_grayscale(&grayscale, w, h);
-
-    let (marginal_map, conditional_map) = rs_sampler::envmap::calc_inverse_cdf_map(&rgbdata, w, h);
+    let (marginal_map, conditional_map) =
+        rs_sampler::envmap::calc_inverse_cdf_map(&grayscale, itgr, w, h);
 
     let mut img = vec![*Rgb::from_slice(&[0.; 3]); w * h];
 
@@ -36,7 +35,7 @@ fn main() {
         let mut halton = HaltonSampler::new();
         let nsamples = 128;
         let i_w = i_pix % w;
-        let i_h = i_pix / w;
+        let i_h = i_pix / w; 
 
         let tex = pixel2texpair(i_w, i_h, w, h);
         let nrm = envmap2unitsphere(&tex);
