@@ -35,7 +35,7 @@ fn main() {
         let mut halton = HaltonSampler::new();
         let nsamples = 128;
         let i_w = i_pix % w;
-        let i_h = i_pix / w; 
+        let i_h = w - 1 - i_pix / w; // top-left to bottom-left
 
         let tex = pixel2texpair(i_w, i_h, w, h);
         let nrm = envmap2unitsphere(&tex);
