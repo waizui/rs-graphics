@@ -1,8 +1,19 @@
-use del_raycast_core;
 use rs_sampler::{envmap::pixel2texpair, haltonsampler::HaltonSampler, sampler::Sampler};
 
 type Real = f32;
 type Rgb = image::Rgb<Real>;
+
+fn gen_spheres() -> Vec<(Real, Real)> {
+    let vec: Vec<(Real, Real)> = Vec::new();
+
+    let nsphere = 5;
+
+    for pat in (0..nsphere) {
+        todo!();
+    }
+
+    vec
+}
 
 fn main() {
     use image::Pixel;
@@ -11,16 +22,18 @@ fn main() {
     use rayon::iter::IntoParallelRefMutIterator;
     use rayon::iter::ParallelIterator;
 
-    let w = 1024;
-    let h = 1024;
+    let w = 512;
+    let h = 512;
+    let nsamples = 64;
 
     let len_rad = 0.0125;
     let focal_dis = 0.05;
     let fov = 20.0;
 
     let transform_cam_lcl2glbl = del_geo_core::mat4_col_major::from_translate(&[0., 0., -5.]);
-    let mut img = vec![*Rgb::from_slice(&[0.; 3]); w * h];
+    let spheres = gen_spheres();
 
+    let mut img = vec![*Rgb::from_slice(&[0.; 3]); w * h];
     let iter = |i_pix: usize, pix: &mut Rgb| {
         let iw = i_pix % w;
         // top-left to bottom-left
@@ -34,9 +47,6 @@ fn main() {
             fov,
             transform_cam_lcl2glbl,
         );
-
-        let mut halton = HaltonSampler::new();
-        let nsamples = 64;
 
         let mut result = [0.; 3];
         for i in 0..nsamples {

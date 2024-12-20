@@ -1055,6 +1055,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "del-geo-core",
+ "del-geo-nalgebra",
  "del-raycast-core",
  "image",
  "itertools 0.13.0",
