@@ -1059,6 +1059,7 @@ dependencies = [
  "del-raycast-core",
  "image",
  "itertools 0.13.0",
+ "nalgebra",
  "num-traits",
  "rand",
  "rayon",
