@@ -9,7 +9,7 @@ fn gen_spheres() -> Vec<([Real; 3], Real)> {
     let nsphere = 3;
 
     for i in 0..nsphere {
-        let c = [i as Real, i as Real, 0.];
+        let c = [i as Real / 2., 0., i as Real];
         let r = 0.5;
         vec.push((c, r));
     }
@@ -42,7 +42,7 @@ fn main() {
         // let transform_env = del_geo_core::mat4_col_major::try_inverse(&transform_env).unwrap();
         m.as_slice().try_into().unwrap()
     };
-    let transform_cam_lcl2glbl = del_geo_core::mat4_col_major::from_translate(&[0., 0., -5.]);
+    let transform_cam_lcl2glbl = del_geo_core::mat4_col_major::from_translate(&[0., 0., -10.]);
     let spheres = gen_spheres();
 
     let mut img = vec![*Rgb::from_slice(&[0.; 3]); w * h];

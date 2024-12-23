@@ -16,9 +16,9 @@ checksum = "4aa90d7ce82d4be67b64039a3d588d38dbcc6736577de4a847025ce5b0c468d1"
 
 [[package]]
 name = "anyhow"
-version = "1.0.94"
+version = "1.0.95"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1fd03a028ef38ba2276dce7e33fcd6369c158a1bca17946c4b1b701891c1ff7"
+checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
 
 [[package]]
 name = "approx"
@@ -137,9 +137,9 @@ checksum = "5ce89b21cab1437276d2650d57e971f9d548a2d9037cc231abdc0562b97498ce"
 
 [[package]]
 name = "bytemuck"
-version = "1.20.0"
+version = "1.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b37c88a63ffd85d15b406896cc343916d7cf57838a847b3a6f2ca5d39a5695a"
+checksum = "ef657dfab802224e671f5818e9a4935f9b1957ed18e58292690cc39e7a4092a3"
 
 [[package]]
 name = "byteorder"
@@ -277,7 +277,7 @@ dependencies = [
 [[package]]
 name = "del-geo-core"
 version = "0.1.32"
-source = "git+https://github.com/nobuyuki83/del-geo.git#700627f1f1f61e2b257cdc8496c923efb1471dc7"
+source = "git+https://github.com/nobuyuki83/del-geo.git#8d43295c0967f8fb22fa661b519db98b0af34934"
 dependencies = [
  "array-macro",
  "arrayref",
@@ -291,7 +291,7 @@ dependencies = [
 [[package]]
 name = "del-geo-nalgebra"
 version = "0.1.32"
-source = "git+https://github.com/nobuyuki83/del-geo.git#700627f1f1f61e2b257cdc8496c923efb1471dc7"
+source = "git+https://github.com/nobuyuki83/del-geo.git#8d43295c0967f8fb22fa661b519db98b0af34934"
 dependencies = [
  "del-geo-core",
  "nalgebra",
@@ -333,7 +333,7 @@ dependencies = [
 [[package]]
 name = "del-raycast-core"
 version = "0.1.0"
-source = "git+https://github.com/nobuyuki83/del-raycast.git#e8da0e23bd5462981af4bac5ec8cfcfdac988356"
+source = "git+https://github.com/nobuyuki83/del-raycast.git#f15617ea835a156746c7505cc9a44c08eeb02a46"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -1086,9 +1086,9 @@ checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
 
 [[package]]
 name = "safe_arch"
-version = "0.7.2"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3460605018fdc9612bce72735cba0d27efbcd9904780d44c7e3a9948f96148a"
+checksum = "96b02de82ddbe1b636e6170c21be622223aea188ef2e139be0a5b219ec215323"
 dependencies = [
  "bytemuck",
 ]
@@ -1133,9 +1133,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.133"
+version = "1.0.134"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7fceb2473b9166b2294ef05efcb65a3db80803f0b03ef86a5fc88a2b85ee377"
+checksum = "d00f4175c42ee48b15416f6193a959ba3a0d67fc699a0db9ad12df9f83991c7d"
 dependencies = [
  "itoa",
  "memchr",
@@ -1215,9 +1215,9 @@ checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
 name = "syn"
-version = "2.0.90"
+version = "2.0.91"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "919d3b74a5dd0ccd15aeb8f93e7006bd9e14c295087c9896a110f490752bcf31"
+checksum = "d53cbcb5a243bd33b7858b1d7f4aca2153490815872d86d955d6ea29f743c035"
 dependencies = [
  "proc-macro2",
  "quote",
