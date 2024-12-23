@@ -52,7 +52,7 @@ fn main() {
         let ih = w - 1 - i_pix / w;
         let tex = pixel2texpair(iw, ih, w, h);
 
-        let (ray_org, ray_dir) = del_raycast_core::cam_pbrt::cast_ray(
+        let (ray_org, ray_dir) = del_raycast_core::cam_pbrt::cast_ray_plus_z (
             (iw, ih),
             (0., 0.),
             (w, h),
