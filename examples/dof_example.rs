@@ -10,7 +10,7 @@ fn gen_spheres() -> Vec<([Real; 3], Real)> {
 
     for i in 0..nsphere {
         let ext = i as Real;
-        let c = [ext, 0., -ext * 1.5];
+        let c = [ext, 0., -ext * 2.];
         let r = 0.5;
         vec.push((c, r));
     }
@@ -21,7 +21,6 @@ fn gen_spheres() -> Vec<([Real; 3], Real)> {
 fn main() {
     use del_geo_core::vec3;
     use image::Pixel;
-    use itertools::Itertools;
     use rayon::iter::IndexedParallelIterator;
     use rayon::iter::IntoParallelRefMutIterator;
     use rayon::iter::ParallelIterator;
@@ -29,7 +28,7 @@ fn main() {
     let mut w = 512;
     let mut h = 512;
 
-    let debug = true;
+    let debug = false;
 
     if debug {
         w = 2;
@@ -41,13 +40,15 @@ fn main() {
         nsamples = 2;
     }
 
-    let lens_rad = 0.0125;
-    let focal_dis = 0.05;
+    let lens_rad = 0.08;
+    let focal_dis = 3.86;
     let fov = 60.0;
 
-    let campos = [0.5, 1.5, 2.];
-    // let view = del_geo_core::vec3::scale(&campos, -1.);
-    let view = [0., -1., -2.];
+    // let campos = [1.5, 1.5, 2.5];
+    // let view = [0., -1., -2.];
+
+    let campos = [1., 0., 2.];
+    let view = [0., 0., -1.];
     let mut v2w = cam::matrix_v2w(&view).1;
     // concat translation
     v2w[0 + 3 * 4] = campos[0];

@@ -108,7 +108,8 @@ pub fn gen_ray_lens(
         plens[1] += pdisk[1];
 
         let ft = focal_dis;
-        let pfocus = vec3::axpy(ft, &org, &dir);
+        let nrm_dir = vec3::normalize(&dir);
+        let pfocus = vec3::axpy(ft, &nrm_dir, &org);
 
         dir = vec3::sub(&pfocus, &plens);
         org = plens;
@@ -121,9 +122,9 @@ pub fn gen_ray_lens(
 pub fn matrix_w2v(pos: &[Real; 3], view: &[Real; 3]) -> ([Real; 3], [Real; 16]) {
     let (up, view2world) = matrix_v2w(view);
     let mut world2view = del_geo_core::mat4_col_major::transpose(&view2world);
-    world2view[0 + 3 * 4] = pos[0];
-    world2view[1 + 3 * 4] = pos[1];
-    world2view[2 + 3 * 4] = pos[2];
+    world2view[0 + 3 * 4] = -pos[0];
+    world2view[1 + 3 * 4] = -pos[1];
+    world2view[2 + 3 * 4] = -pos[2];
 
     (up, world2view)
 }
@@ -176,10 +177,9 @@ pub fn project_matrix(n: Real, f: Real, fov: Real) -> Matrix4<Real> {
 #[test]
 fn test_gen_ray_lens() {
     use crate::cam;
-    use crate::haltonsampler;
 
-    let lens_rad = 0.0125;
-    let focal_dis = 0.05;
+    let lens_rad = 0.05;
+    let focal_dis = 2.0;
     let fov = 60.0;
 
     let w = 5;
@@ -187,7 +187,7 @@ fn test_gen_ray_lens() {
     let iw = 2;
     let ih = 2;
 
-    let campos = [0., 0., 0.];
+    let campos = [0.0, 0., 2.86];
     let view = [0., 0., -1.];
     let mut v2w = cam::matrix_v2w(&view).1;
     // concat translation
@@ -195,22 +195,21 @@ fn test_gen_ray_lens() {
     v2w[1 + 3 * 4] = campos[1];
     v2w[2 + 3 * 4] = campos[2];
 
-    for sample in 0..4 {
-        let lensx: Real = haltonsampler::radical_inverse(sample, 0);
-        let lensy: Real = haltonsampler::radical_inverse(sample, 1);
+    let lensx: Real = 0.;
+    let lensy: Real = 0.;
 
-        let (ray_org, ray_dir) = cam::gen_ray_lens(
-            (lensx, lensy),
-            (lens_rad, focal_dis),
-            (iw, ih),
-            (0., 0.),
-            (w, h),
-            fov,
-            &v2w,
-        );
+    let (ray_org, ray_dir) = cam::gen_ray_lens(
+        (lensx, lensy),
+        (lens_rad, focal_dis),
+        (iw, ih),
+        (0., 0.),
+        (w, h),
+        fov,
+        &v2w,
+    );
 
-        dbg!(iw, ih);
-        dbg!(ray_org);
-        dbg!(ray_dir);
-    }
+    dbg!(ray_org);
+    dbg!(ray_dir);
+    let pfocus = vec3::add(&ray_org, &ray_dir);
+    dbg!(pfocus);
 }
