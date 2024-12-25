@@ -73,12 +73,12 @@ pub fn gen_ray(
 }
 
 pub fn gen_ray_lens(
+    (lensx, lensy): (f32, f32),
+    (lens_rad, focal_dis): (f32, f32),
     (ix, iy): (usize, usize),
     (dx, dy): (f32, f32),
-    (lensx, lensy): (f32, f32),
     img_shape: (usize, usize),
     fov: f32,
-    (lens_rad, focal_dis): (f32, f32),
     transform_camlcl2world: &[f32; 16],
 ) -> ([f32; 3], [f32; 3]) {
     assert!(ix < img_shape.0 && iy < img_shape.1);
@@ -100,9 +100,13 @@ pub fn gen_ray_lens(
     org = transform_vector(transform_camlcl2world, &org).unwrap();
 
     if lens_rad > 0. {
-        let plens = sampling::sample_uni_disk_concentric(&[lensx, lensy]);
-        let plens = del_geo_core::vec2::scale(&plens, lens_rad);
-        let plens = [plens[0], plens[1], dir[2]];
+        let mut pdisk = sampling::sample_uni_disk_concentric(&[lensx, lensy]);
+        pdisk = del_geo_core::vec2::scale(&pdisk, lens_rad);
+
+        let mut plens = vec3::add(&org, &dir);
+        plens[0] += pdisk[0];
+        plens[1] += pdisk[1];
+
         let ft = focal_dis;
         let pfocus = vec3::axpy(ft, &org, &dir);
 
@@ -167,4 +171,46 @@ pub fn project_matrix(n: Real, f: Real, fov: Real) -> Matrix4<Real> {
     );
 
     s * p
+}
+
+#[test]
+fn test_gen_ray_lens() {
+    use crate::cam;
+    use crate::haltonsampler;
+
+    let lens_rad = 0.0125;
+    let focal_dis = 0.05;
+    let fov = 60.0;
+
+    let w = 5;
+    let h = 5;
+    let iw = 2;
+    let ih = 2;
+
+    let campos = [0., 0., 0.];
+    let view = [0., 0., -1.];
+    let mut v2w = cam::matrix_v2w(&view).1;
+    // concat translation
+    v2w[0 + 3 * 4] = campos[0];
+    v2w[1 + 3 * 4] = campos[1];
+    v2w[2 + 3 * 4] = campos[2];
+
+    for sample in 0..4 {
+        let lensx: Real = haltonsampler::radical_inverse(sample, 0);
+        let lensy: Real = haltonsampler::radical_inverse(sample, 1);
+
+        let (ray_org, ray_dir) = cam::gen_ray_lens(
+            (lensx, lensy),
+            (lens_rad, focal_dis),
+            (iw, ih),
+            (0., 0.),
+            (w, h),
+            fov,
+            &v2w,
+        );
+
+        dbg!(iw, ih);
+        dbg!(ray_org);
+        dbg!(ray_dir);
+    }
 }
