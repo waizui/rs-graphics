@@ -58,6 +58,8 @@ fn main() {
     let iter = |i_pix: usize, pix: &mut Rgb| {
         let iw = i_pix % w;
         let ih = i_pix / w;
+
+
         let tex = pixel2texpair(iw, ih, w, h);
 
         let (ray_org, ray_dir) = cam::gen_ray((iw, ih), (0., 0.), (w, h), fov, &v2w);

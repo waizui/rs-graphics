@@ -9,3 +9,4 @@ pub mod sobolsampler;
 pub mod util;
 pub mod cam;
 pub mod mat4;
+pub mod sampling;

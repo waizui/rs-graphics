@@ -1,7 +1,7 @@
 use del_geo_core::vec3;
 use nalgebra::Matrix4;
 
-use crate::mat4::transform_vector;
+use crate::{mat4::transform_vector, sampling};
 
 type Real = f32;
 
@@ -69,6 +69,47 @@ pub fn gen_ray(
     use del_geo_core::mat4_col_major;
     dir = mat4_col_major::transform_direction(transform_camlcl2world, &dir);
     org = transform_vector(transform_camlcl2world, &org).unwrap();
+    (org, dir)
+}
+
+pub fn gen_ray_lens(
+    (ix, iy): (usize, usize),
+    (dx, dy): (f32, f32),
+    (lensx, lensy): (f32, f32),
+    img_shape: (usize, usize),
+    fov: f32,
+    (lens_rad, focal_dis): (f32, f32),
+    transform_camlcl2world: &[f32; 16],
+) -> ([f32; 3], [f32; 3]) {
+    assert!(ix < img_shape.0 && iy < img_shape.1);
+    let focal_len = 0.5 / (fov / 2.0).to_radians().tan();
+    let (screen_width, screen_height) = if img_shape.0 > img_shape.1 {
+        (img_shape.0 as f32 / img_shape.1 as f32, 1f32)
+    } else {
+        (1f32, img_shape.1 as f32 / img_shape.0 as f32)
+    };
+    let x = ((ix as f32 + 0.5 + dx) / img_shape.0 as f32 - 0.5) * screen_width;
+    let y = (0.5 - (iy as f32 + 0.5 + dy) / img_shape.1 as f32) * screen_height;
+    let z = focal_len;
+    // flip x making right-handed
+    let mut dir = [-x, y, z];
+    let mut org = [0.0, 0.0, 0.0];
+
+    use del_geo_core::mat4_col_major;
+    dir = mat4_col_major::transform_direction(transform_camlcl2world, &dir);
+    org = transform_vector(transform_camlcl2world, &org).unwrap();
+
+    if lens_rad > 0. {
+        let plens = sampling::sample_uni_disk_concentric(&[lensx, lensy]);
+        let plens = del_geo_core::vec2::scale(&plens, lens_rad);
+        let plens = [plens[0], plens[1], dir[2]];
+        let ft = focal_dis;
+        let pfocus = vec3::axpy(ft, &org, &dir);
+
+        dir = vec3::sub(&pfocus, &plens);
+        org = plens;
+    }
+
     (org, dir)
 }
 
