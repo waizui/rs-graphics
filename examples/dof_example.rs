@@ -11,9 +11,11 @@ fn gen_spheres() -> Vec<([Real; 3], Real)> {
     for i in 0..nsphere {
         let ext = i as Real;
         let c = [ext, 0., -ext * 2.];
-        let r = 0.5;
+        let r = 0.7;
         vec.push((c, r));
     }
+
+    vec.push(([3.,1.,-4.],0.1));
 
     vec
 }
@@ -88,7 +90,7 @@ fn main() {
             for sphere in &spheres {
                 let hit_res = del_geo_nalgebra::sphere::intersection_ray(
                     &nalgebra::Vector3::<f32>::from(sphere.0),
-                    0.7,
+                    sphere.1,
                     &nalgebra::Vector3::<f32>::from(ray_org),
                     &nalgebra::Vector3::<f32>::from(ray_dir),
                 );
