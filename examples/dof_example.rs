@@ -1,3 +1,4 @@
+//! Depth of field technique
 use rs_sampler::{cam, haltonsampler};
 
 type Real = f32;

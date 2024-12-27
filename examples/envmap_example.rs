@@ -1,3 +1,4 @@
+//! light sampling octahadral environment map
 use rs_sampler::pfm::PFM;
 use rs_sampler::{
     envmap::envmap2unitsphere, envmap::pixel2texpair, envmap::tex2pixel,
