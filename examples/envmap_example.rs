@@ -65,10 +65,10 @@ fn main() {
                 continue;
             }
 
-            del_geo_core::vec3::scale(&mut radiance, costheta / pdf);
+            radiance = del_geo_core::vec3::scale(&radiance, costheta / pdf);
             result = del_geo_core::vec3::add(&result, &radiance);
         }
-        del_geo_core::vec3::scale(&mut result, 4. / nsamples as Real);
+        result = del_geo_core::vec3::scale(&result, 4. / nsamples as Real);
 
         pix.0 = result;
     };

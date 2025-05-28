@@ -14,7 +14,7 @@ itertools = "0.13.0"
 
 # git
 del-geo-core = { git = "https://github.com/nobuyuki83/del-geo.git"}
-del-raycast-core = { git = "https://github.com/nobuyuki83/del-raycast.git"}
+#del-raycast-core = { git = "https://github.com/nobuyuki83/del-raycast.git"}
 del-geo-nalgebra = { git = "https://github.com/nobuyuki83/del-geo.git"}
 
 [dev-dependencies]
