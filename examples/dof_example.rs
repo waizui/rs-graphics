@@ -16,7 +16,7 @@ fn gen_spheres() -> Vec<([Real; 3], Real)> {
         vec.push((c, r));
     }
 
-    vec.push(([3.,1.,-4.],0.1));
+    vec.push(([3., 1., -4.], 0.1));
 
     vec
 }
