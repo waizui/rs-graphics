@@ -1,18 +1,17 @@
-use std::f32::consts::PI;
-
 use del_geo_core::vec3::{self, Vec3};
 use rayon::prelude::*;
 use rs_sampler::cam;
 
 type Rgb = image::Rgb<f32>;
 
+/// y-up, z-forward
 fn xyz2spherical_local(pos: &[f32; 3], sphere: &([f32; 3], f32)) -> [f32; 3] {
     let v = vec3::sub(pos, &sphere.0);
     let r = v.norm();
     assert!(r > 0f32);
     let u = v.normalize();
-    let theta = u[2].acos();
-    let phi = u[1].atan2(u[0]);
+    let theta = u[1].acos();
+    let phi = u[0].atan2(u[2]);
     [r, theta, phi]
 }
 
@@ -29,10 +28,10 @@ fn main() {
 
     // center, radius
     let sphere = ([0f32, 0f32, 0f32], 1f32);
-    
+
     // TODO: use y-up
-    let campos = [3., 0., 0.];
-    let view = [-1., 0., 0.];
+    let campos = [0., 0., 3.];
+    let view = [0., 0., -1.];
     let mut v2w = cam::matrix_v2w(&view).1;
     // concat translation
     v2w[0 + 3 * 4] = campos[0];
@@ -57,7 +56,7 @@ fn main() {
             let hit_pos = vec3::axpy::<f32>(t, &ray_dir, &ray_org);
             let spherical_coord = xyz2spherical_local(&hit_pos, &sphere);
 
-            result = [spherical_coord[1].sin(); 3];
+            result = [spherical_coord[2].sin(); 3];
         }
 
         pix.0 = result;
