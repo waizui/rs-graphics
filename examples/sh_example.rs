@@ -1,8 +1,7 @@
-use std::f32::consts::PI;
-
 use del_geo_core::vec3::{self, Vec3};
 use rayon::prelude::*;
 use rs_sampler::cam;
+use std::f32::consts::PI;
 
 type Rgb = image::Rgb<f32>;
 
@@ -68,9 +67,7 @@ fn factorial(x: i32) -> i32 {
 fn K(l: i32, m: i32) -> f32 {
     let mabs = m.abs();
     let fac0 = (2f32 * l as f32 + 1f32) / (4f32 * PI);
-    let fa1 = factorial(l - mabs) as f32;
-    let fa2 = factorial(l + mabs) as f32;
-    let fac1 = fa1 / fa2;
+    let fac1 = factorial(l - mabs) as f32 / factorial(l + mabs) as f32;
     let res = fac0 * fac1;
     res.sqrt()
 }
@@ -87,7 +84,6 @@ fn sh_real(l: i32, m: i32, theta: f32, phi: f32) -> f32 {
         let k = K(l, m);
         let p = P(l, m, theta.cos());
         return sqrt2 * k * (m as f32 * phi) * p;
-        // return sqrt2 * K(l, m) * (m as f32 * phi) * P(l, m, theta.cos());
     }
 
     let m = -m;
@@ -119,6 +115,20 @@ fn draw_legendre_poly() {
     let _ = HdrEncoder::new(file_ms).encode(&img, w, h);
 }
 
+fn gen_spheres(l: i32) -> Vec<([f32; 3], f32)> {
+    let mut spheres: Vec<([f32; 3], f32)> = Vec::new();
+    let ext = 2;
+    for il in 0..l {
+        for im in -il..il {
+            let x = (im * ext) as f32;
+            let y = (il * ext) as f32;
+            let s = ([x, y, 0f32], 1f32);
+            spheres.push(s);
+        }
+    }
+    spheres
+}
+
 fn draw_sh() {
     use image::Pixel;
 
@@ -126,10 +136,10 @@ fn draw_sh() {
     let h = 512;
     let mut img = vec![*Rgb::from_slice(&[0.; 3]); w * h];
 
-    // center, radius
-    let sphere = ([0f32, 0f32, 0f32], 1f32);
+    let l = 4; //sh order
+    let spheres = gen_spheres(l);
 
-    let campos = [0., 0., 3.];
+    let campos = [0., 0., 15.];
     let view = [0., 0., -1.];
     let mut v2w = cam::matrix_v2w(&view).1;
     // concat translation
@@ -140,33 +150,45 @@ fn draw_sh() {
     let task = |i_pix: usize, pix: &mut Rgb| {
         let iw = i_pix % w;
         let ih = i_pix / w;
-        let mut result = [0f32; 3];
-
         let (ray_org, ray_dir) = cam::gen_ray((iw, ih), (0., 0.), (w, h), 60., &v2w);
 
-        let hit_res = del_geo_nalgebra::sphere::intersection_ray(
-            &nalgebra::Vector3::<f32>::from(sphere.0),
-            sphere.1,
-            &nalgebra::Vector3::<f32>::from(ray_org),
-            &nalgebra::Vector3::<f32>::from(ray_dir),
-        );
-
-        if let Some(t) = hit_res {
-            let hit_pos = vec3::axpy::<f32>(t, &ray_dir, &ray_org);
-            let coord = xyz2spherical_local(&hit_pos, &sphere);
-            let theta = coord[1];
-            let phi = coord[2];
-
-            let v = sh_real(1, 1, theta, phi);
-
-            if v > 0f32 {
-                result = [v, 0f32, 0f32];
-            } else {
-                result = [0f32, -v, 0f32];
+        let (t, i_sphere) = {
+            let mut t = f32::INFINITY;
+            let mut i_sphere = 0;
+            for (i, sphere) in spheres.iter().enumerate() {
+                if let Some(t_hit) = del_geo_nalgebra::sphere::intersection_ray(
+                    &nalgebra::Vector3::<f32>::from(sphere.0),
+                    sphere.1,
+                    &nalgebra::Vector3::<f32>::from(ray_org),
+                    &nalgebra::Vector3::<f32>::from(ray_dir),
+                ) {
+                    if t_hit < t {
+                        t = t_hit;
+                        i_sphere = i;
+                    }
+                }
             }
+
+            (t, i_sphere)
+        };
+
+        if t == f32::INFINITY {
+            return;
         }
 
-        pix.0 = result;
+        let sphere = spheres[i_sphere];
+        let hit_pos = vec3::axpy::<f32>(t, &ray_dir, &ray_org);
+        let coord = xyz2spherical_local(&hit_pos, &sphere);
+        let theta = coord[1];
+        let phi = coord[2];
+
+        let v = sh_real(l, 0, theta, phi);
+
+        if v > 0f32 {
+            pix.0 = [0f32, v, 0f32];
+        } else {
+            pix.0 = [-v, 0f32, 0f32];
+        }
     };
 
     img.par_iter_mut()
@@ -178,9 +200,14 @@ fn draw_sh() {
     let _ = HdrEncoder::new(file_ms).encode(&img, w, h);
 }
 
+fn project_sh() {
+    //TODO:impl
+}
+
 fn main() {
-    draw_sh();
     draw_legendre_poly();
+    draw_sh();
+    project_sh();
 }
 
 #[test]
