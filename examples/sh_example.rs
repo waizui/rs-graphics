@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use del_geo_core::vec3::{self, Vec3};
 use rayon::prelude::*;
 use rs_sampler::cam;
@@ -16,7 +18,8 @@ fn xyz2spherical_local(pos: &[f32; 3], sphere: &([f32; 3], f32)) -> [f32; 3] {
 }
 
 /// evaluate an Associated Legendre Polynomial P(l,m) at x, using three properties
-fn legendre_polynomials(l: i32, m: i32, x: f32) -> f32 {
+#[allow(non_snake_case)]
+fn P(l: i32, m: i32, x: f32) -> f32 {
     assert!(l >= m.abs());
     let mut pmm = 1f32;
     // evaluate  P(m,m) from P(0,0)
@@ -47,8 +50,28 @@ fn legendre_polynomials(l: i32, m: i32, x: f32) -> f32 {
     pll
 }
 
-fn spherical_harmonics(l: i32, m: i32, theta: f32, phi: f32) -> f32 {
-    todo!()
+#[allow(non_snake_case)]
+fn K(l: i32, m: i32) -> f32 {
+    let mabs = m.abs() as f32;
+    let l = l as f32;
+    let res = ((2f32 * l + 1f32) / (4f32 * PI)) * ((l - mabs) / (l + mabs));
+    res.sqrt()
+}
+
+/// real part of spherical harmonics
+fn sh_real(l: i32, m: i32, theta: f32, phi: f32) -> f32 {
+    if m == 0 {
+        return K(l, m) * P(l, m, theta.cos());
+    }
+
+    let sqrt2 = 2f32.sqrt();
+
+    if m > 0 {
+        return sqrt2 * K(l, m) * (m as f32 * phi) * P(l, m, theta.cos());
+    }
+
+    let m = -m;
+    sqrt2 * K(l, m) * (m as f32 * phi) * P(l, m, theta.cos())
 }
 
 fn draw_legendre_poly() {
@@ -63,7 +86,7 @@ fn draw_legendre_poly() {
     for l in 0..deg {
         for i in 0..w {
             let x = i as f32 / w as f32;
-            let y = legendre_polynomials(l, ord, 2f32 * x - 1f32);
+            let y = P(l, ord, 2f32 * x - 1f32);
             let iy = ((1. - (y + 1f32) / 2f32) * h as f32 - 0.5f32) as usize;
             let ix = (x * w as f32 - 0.5f32) as usize;
             let ipix = iy * w + ix;
@@ -110,9 +133,17 @@ fn draw_sh() {
 
         if let Some(t) = hit_res {
             let hit_pos = vec3::axpy::<f32>(t, &ray_dir, &ray_org);
-            let spherical_coord = xyz2spherical_local(&hit_pos, &sphere);
+            let coord = xyz2spherical_local(&hit_pos, &sphere);
+            let theta = coord[1];
+            let phi = coord[2];
 
-            result = [spherical_coord[2].sin(); 3];
+            let v = sh_real(2, 1, theta, phi);
+
+            if v > 0f32 {
+                result = [v, 0f32, 0f32];
+            } else {
+                result = [0f32, -v, 0f32];
+            }
         }
 
         pix.0 = result;
