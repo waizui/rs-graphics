@@ -50,11 +50,28 @@ fn P(l: i32, m: i32, x: f32) -> f32 {
     pll
 }
 
+fn factorial(x: i32) -> i32 {
+    if x == 0 {
+        return 1;
+    }
+    let mut acc = 1;
+    let mut n = x;
+    while n > 0 {
+        acc *= n;
+        n -= 1;
+    }
+
+    acc
+}
+
 #[allow(non_snake_case)]
 fn K(l: i32, m: i32) -> f32 {
-    let mabs = m.abs() as f32;
-    let l = l as f32;
-    let res = ((2f32 * l + 1f32) / (4f32 * PI)) * ((l - mabs) / (l + mabs));
+    let mabs = m.abs();
+    let fac0 = (2f32 * l as f32 + 1f32) / (4f32 * PI);
+    let fa1 = factorial(l - mabs) as f32;
+    let fa2 = factorial(l + mabs) as f32;
+    let fac1 = fa1 / fa2;
+    let res = fac0 * fac1;
     res.sqrt()
 }
 
@@ -67,7 +84,10 @@ fn sh_real(l: i32, m: i32, theta: f32, phi: f32) -> f32 {
     let sqrt2 = 2f32.sqrt();
 
     if m > 0 {
-        return sqrt2 * K(l, m) * (m as f32 * phi) * P(l, m, theta.cos());
+        let k = K(l, m);
+        let p = P(l, m, theta.cos());
+        return sqrt2 * k * (m as f32 * phi) * p;
+        // return sqrt2 * K(l, m) * (m as f32 * phi) * P(l, m, theta.cos());
     }
 
     let m = -m;
@@ -137,7 +157,7 @@ fn draw_sh() {
             let theta = coord[1];
             let phi = coord[2];
 
-            let v = sh_real(2, 1, theta, phi);
+            let v = sh_real(1, 1, theta, phi);
 
             if v > 0f32 {
                 result = [v, 0f32, 0f32];
