@@ -5,9 +5,14 @@ use std::f32::consts::PI;
 
 type Rgb = image::Rgb<f32>;
 
+struct Sphere {
+    cnt: [f32; 3],
+    r: f32,
+}
+
 /// y-up, z-forward
-fn xyz2spherical_local(pos: &[f32; 3], sphere: &([f32; 3], f32)) -> [f32; 3] {
-    let v = vec3::sub(pos, &sphere.0);
+fn xyz2spherical_local(pos: &[f32; 3], sphere: &Sphere) -> [f32; 3] {
+    let v = vec3::sub(pos, &sphere.cnt);
     let r = v.norm();
     assert!(r > 0f32);
     let u = v.normalize();
@@ -81,13 +86,11 @@ fn sh_real(l: i32, m: i32, theta: f32, phi: f32) -> f32 {
     let sqrt2 = 2f32.sqrt();
 
     if m > 0 {
-        let k = K(l, m);
-        let p = P(l, m, theta.cos());
-        return sqrt2 * k * (m as f32 * phi) * p;
+        return sqrt2 * K(l, m) * (m as f32 * phi).cos() * P(l, m, theta.cos());
     }
 
     let m = -m;
-    sqrt2 * K(l, m) * (m as f32 * phi) * P(l, m, theta.cos())
+    sqrt2 * K(l, m) * (m as f32 * phi).sin() * P(l, m, theta.cos())
 }
 
 fn draw_legendre_poly() {
@@ -115,15 +118,20 @@ fn draw_legendre_poly() {
     let _ = HdrEncoder::new(file_ms).encode(&img, w, h);
 }
 
-fn gen_spheres(l: i32) -> Vec<([f32; 3], f32)> {
-    let mut spheres: Vec<([f32; 3], f32)> = Vec::new();
-    let ext = 2;
+/// return (sphere,l,m)
+fn gen_spheres(l: i32) -> Vec<(Sphere, (i32, i32))> {
+    let mut spheres: Vec<(Sphere, (i32, i32))> = Vec::new();
+    let ext = 3;
     for il in 0..l {
-        for im in -il..il {
+        for im in -il..il + 1 {
             let x = (im * ext) as f32;
-            let y = (il * ext) as f32;
-            let s = ([x, y, 0f32], 1f32);
-            spheres.push(s);
+            let y = ((l - il) * ext) as f32 - (l * ext) as f32 / 2f32;
+            let s = Sphere {
+                cnt: [x, y, 0f32],
+                r: 1f32,
+            };
+
+            spheres.push((s, (il, im)));
         }
     }
     spheres
@@ -134,12 +142,12 @@ fn draw_sh() {
 
     let w = 512;
     let h = 512;
-    let mut img = vec![*Rgb::from_slice(&[0.; 3]); w * h];
+    let mut img = vec![*Rgb::from_slice(&[0.5; 3]); w * h];
 
     let l = 4; //sh order
     let spheres = gen_spheres(l);
 
-    let campos = [0., 0., 15.];
+    let campos = [0., 0., 18.];
     let view = [0., 0., -1.];
     let mut v2w = cam::matrix_v2w(&view).1;
     // concat translation
@@ -157,8 +165,8 @@ fn draw_sh() {
             let mut i_sphere = 0;
             for (i, sphere) in spheres.iter().enumerate() {
                 if let Some(t_hit) = del_geo_nalgebra::sphere::intersection_ray(
-                    &nalgebra::Vector3::<f32>::from(sphere.0),
-                    sphere.1,
+                    &nalgebra::Vector3::<f32>::from(sphere.0.cnt),
+                    sphere.0.r,
                     &nalgebra::Vector3::<f32>::from(ray_org),
                     &nalgebra::Vector3::<f32>::from(ray_dir),
                 ) {
@@ -176,13 +184,13 @@ fn draw_sh() {
             return;
         }
 
-        let sphere = spheres[i_sphere];
+        let sphere = &spheres[i_sphere];
         let hit_pos = vec3::axpy::<f32>(t, &ray_dir, &ray_org);
-        let coord = xyz2spherical_local(&hit_pos, &sphere);
+        let coord = xyz2spherical_local(&hit_pos, &sphere.0);
         let theta = coord[1];
         let phi = coord[2];
 
-        let v = sh_real(l, 0, theta, phi);
+        let v = sh_real(sphere.1 .0, sphere.1 .1, theta, phi);
 
         if v > 0f32 {
             pix.0 = [0f32, v, 0f32];
