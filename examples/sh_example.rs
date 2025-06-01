@@ -11,14 +11,20 @@ struct Sphere {
 }
 
 /// y-up, z-forward
-fn xyz2spherical_local(pos: &[f32; 3], sphere: &Sphere) -> [f32; 3] {
-    let v = vec3::sub(pos, &sphere.cnt);
-    let r = v.norm();
+fn xyz2spherical(xyz: &[f32; 3]) -> [f32; 3] {
+    let r = xyz.norm();
     assert!(r > 0f32);
-    let u = v.normalize();
+    let u = xyz.normalize();
     let theta = u[1].acos();
     let phi = u[0].atan2(u[2]);
     [r, theta, phi]
+}
+
+/// y-up, z-forward
+/// return local spherical coordinates of sphere
+fn worldpos2sphere(pos: &[f32; 3], sphere: &Sphere) -> [f32; 3] {
+    let v = vec3::sub(pos, &sphere.cnt);
+    xyz2spherical(&v)
 }
 
 /// evaluate an Associated Legendre Polynomial P(l,m) at x, using three properties
@@ -186,7 +192,7 @@ fn draw_sh() {
 
         let sphere = &spheres[i_sphere];
         let hit_pos = vec3::axpy::<f32>(t, &ray_dir, &ray_org);
-        let coord = xyz2spherical_local(&hit_pos, &sphere.0);
+        let coord = worldpos2sphere(&hit_pos, &sphere.0);
         let theta = coord[1];
         let phi = coord[2];
 
@@ -204,12 +210,122 @@ fn draw_sh() {
         .for_each(|(i_pix, pix)| task(i_pix, pix));
 
     use image::codecs::hdr::HdrEncoder;
-    let file_ms = std::fs::File::create("target/sh_example.hdr").unwrap();
+    let file_ms = std::fs::File::create("target/sh_example_spheres.hdr").unwrap();
     let _ = HdrEncoder::new(file_ms).encode(&img, w, h);
 }
 
+#[derive(Clone, Debug)]
+struct SHSample {
+    sph: [f32; 3],
+    xyz: [f32; 3],
+    coeff: Vec<f32>,
+}
+
+/// nsamples: specify how many samples will be generated
+/// return random sh samples  across sphere surface
+fn gen_sh_samples(nsamples: usize, l: i32) -> Vec<SHSample> {
+    use rs_sampler::haltonsampler::radical_inverse;
+    use rs_sampler::sampling::*;
+
+    let mut samples = vec![
+        SHSample {
+            sph: [0f32; 3],
+            xyz: [0f32; 3],
+            coeff: Vec::new()
+        };
+        nsamples
+    ];
+
+    let task = |isample: usize, sample: &mut SHSample| {
+        // generate random samples
+        let rx: f32 = radical_inverse(isample, 2);
+        let ry: f32 = radical_inverse(isample, 3);
+        let xyz = square2unitsphere(&[rx, ry]);
+        let spherial = xyz2spherical(&xyz);
+        let theta = spherial[1];
+        let phi = spherial[2];
+
+        sample.xyz = xyz;
+        sample.sph = [1f32, theta, phi];
+
+        for il in 0..l + 1 {
+            for im in -il..il + 1 {
+                let sh = sh_real(il, im, theta, phi);
+                sample.coeff.push(sh);
+            }
+        }
+    };
+
+    samples
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(isample, sample)| task(isample, sample));
+
+    samples
+}
+
 fn project_sh() {
-    //TODO:impl
+    use image::Pixel;
+
+    let nsamples = 128;
+    let l = 3;
+    let sh_samples = gen_sh_samples(nsamples, l);
+
+    let w = 512;
+    let h = 512;
+    let mut img = vec![*Rgb::from_slice(&[0.; 3]); w * h];
+
+    let sphere = Sphere {
+        cnt: [0f32; 3],
+        r: 1f32,
+    };
+
+    let campos = [0., 0., 3.];
+    let view = [0., 0., -1.];
+    let mut v2w = cam::matrix_v2w(&view).1;
+    // concat translation
+    v2w[0 + 3 * 4] = campos[0];
+    v2w[1 + 3 * 4] = campos[1];
+    v2w[2 + 3 * 4] = campos[2];
+
+    let task = |i_pix: usize, pix: &mut Rgb| {
+        let iw = i_pix % w;
+        let ih = i_pix / w;
+        let (ray_org, ray_dir) = cam::gen_ray((iw, ih), (0., 0.), (w, h), 60., &v2w);
+
+        if let Some(t) = del_geo_nalgebra::sphere::intersection_ray(
+            &nalgebra::Vector3::<f32>::from(sphere.cnt),
+            sphere.r,
+            &nalgebra::Vector3::<f32>::from(ray_org),
+            &nalgebra::Vector3::<f32>::from(ray_dir),
+        ) {
+            let hit_pos = vec3::axpy::<f32>(t, &ray_dir, &ray_org);
+            let coord = worldpos2sphere(&hit_pos, &sphere);
+            let theta = coord[1];
+            let phi = coord[2];
+
+            pix.0 = [phi.cos().abs(); 3];
+            for sh_sample in &sh_samples {
+                let sh_theta = sh_sample.sph[1];
+                if (sh_theta.abs() - theta.abs()).abs() > 1e-2 {
+                    continue;
+                }
+
+                let sh_phi = sh_sample.sph[2];
+                if (sh_phi.abs() - phi.abs()).abs() < 1e-2 {
+                    pix.0 = [1f32, 0f32, 0f32];
+                }
+            }
+        };
+    };
+
+    img.par_iter_mut()
+        .enumerate()
+        .for_each(|(i_pix, pix)| task(i_pix, pix));
+
+    use image::codecs::hdr::HdrEncoder;
+    let file_ms = std::fs::File::create("target/sh_example_projection.hdr").unwrap();
+    let _ = HdrEncoder::new(file_ms).encode(&img, w, h);
 }
 
 fn main() {
