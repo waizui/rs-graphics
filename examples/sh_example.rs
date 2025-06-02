@@ -22,7 +22,7 @@ fn worldpos2sphere(pos: &[f32; 3], sphere: &Sphere) -> [f32; 3] {
     xyz2spherical(&v)
 }
 
-/// evaluate an Associated Legendre Polynomial P(l,m) at x, using three properties
+/// evaluate Associated Legendre Polynomial P(l,m) at x, using three properties
 #[allow(non_snake_case)]
 fn P(l: i32, m: i32, x: f32) -> f32 {
     assert!(l >= m.abs());
@@ -250,24 +250,29 @@ fn gen_sh_samples(nsamples: usize, l: i32) -> Vec<SHSample> {
 }
 
 fn light(v: &[f32; 3], img: &[Rgb], shape: (usize, usize)) -> [f32; 3] {
-    use rs_sampler::envmap::*;
-    let uv = unitsphere2envmap(v);
+    // use rs_sampler::envmap::*;
+    // let uv = unitsphere2envmap(v);
+    //
+    // let (w, h) = shape;
+    // let iw = tex2pixel(uv[0], w);
+    // let ih = tex2pixel(uv[1], h);
+    //
+    // let idx = ih * w + iw;
+    // img[idx].0
 
-    let (w, h) = shape;
-    let iw = tex2pixel(uv[0], w);
-    let ih = tex2pixel(uv[1], h);
+    // debug
+    let v = (5. * v[1].cos() - 4.).max(0.01)
+        + ((-4. * (v[1] - PI).sin()) * (v[2] - 2.5).cos() - 3.).max(0.01);
 
-    let idx = ih * w + iw;
-    img[idx].0
+    [v; 3]
+    // debug
 }
 
-fn project_sh() -> Vec<[f32; 3]> {
+fn project_sh(l: i32, nsamples: usize) -> Vec<[f32; 3]> {
     use image::Pixel;
     use itertools::Itertools;
     use rs_sampler::pfm::PFM;
 
-    let nsamples = 128;
-    let l = 3;
     let sh_samples = gen_sh_samples(nsamples, l);
 
     let pfm = PFM::read_from("asset/envmap.pfm").unwrap();
@@ -277,14 +282,15 @@ fn project_sh() -> Vec<[f32; 3]> {
         .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
         .collect_vec();
 
-    let mut coeff = vec![[0f32; 3]; (l * l) as usize];
+    let mut coeff = vec![[0f32; 3]; ((l + 1) * (l + 1)) as usize];
 
     // calculate coefficient ci
     let ci_task = |ic: usize, coeff: &mut [f32; 3]| {
         let mut acc = [0f32; 3];
         for sh_sample in sh_samples.iter().take(nsamples) {
             let sh = sh_sample.coeff[ic];
-            let light = light(&sh_sample.xyz, &envrgb, (pfm.w, pfm.h));
+            // let light = light(&sh_sample.xyz, &envrgb, (pfm.w, pfm.h));
+            let light = light(&sh_sample.sph, &envrgb, (pfm.w, pfm.h));
             acc = acc.add(&light.scale(sh));
         }
 
@@ -300,7 +306,7 @@ fn project_sh() -> Vec<[f32; 3]> {
     coeff
 }
 
-fn reconstruct_sh(coeffs: &[[f32; 3]]) {
+fn reconstruct_sh(coeffs: &[[f32; 3]], l: i32) {
     use image::Pixel;
 
     let w = 512;
@@ -312,8 +318,22 @@ fn reconstruct_sh(coeffs: &[[f32; 3]]) {
         r: 1f32,
     }];
 
-    let campos = [0., 0., 3.];
-    let view = [0., 0., -1.];
+    // let campos = [0., 0., 3.];
+    // let view = [0., 0., -1.];
+
+    let campos = [0., 3., -3.];
+    let view = [0., -1., 1.];
+
+    // debug
+    use itertools::Itertools;
+    use rs_sampler::pfm::PFM;
+    let pfm = PFM::read_from("asset/envmap.pfm").unwrap();
+    let envrgb = pfm
+        .data
+        .chunks(pfm.channels)
+        .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
+        .collect_vec();
+    // debug
 
     let task = |i_pix: usize, pix: &mut Rgb| {
         let iw = i_pix % w;
@@ -325,9 +345,28 @@ fn reconstruct_sh(coeffs: &[[f32; 3]]) {
             let theta = coord[1];
             let phi = coord[2];
 
-            //TODO: reconstruct
+            let mut res = [0f32; 3];
+            for il in 0..l + 1 {
+                for im in -il..il + 1 {
+                    let sh = sh_real(il, im, theta, phi);
+                    let ic = (il * (il + 1) + im) as usize;
+                    let coeff = coeffs[ic];
+                    res = res.add(&coeff.scale(sh));
+                }
+            }
 
-            pix.0 = [phi.cos().abs(); 3];
+            // dbg!(theta * 180f32 / PI);
+            // dbg!(phi * 180f32 / PI);
+            // dbg!(coeffs);
+
+            pix.0 = res;
+
+            // debug
+            // let d = hit_pos.sub(&spheres[0].cnt);
+            // pix.0 = light(&d, &envrgb, (pfm.w, pfm.h));
+
+            // pix.0 = light(&coord, &envrgb, (pfm.w, pfm.h));
+            // debug
         };
     };
 
@@ -341,8 +380,10 @@ fn reconstruct_sh(coeffs: &[[f32; 3]]) {
 }
 
 fn draw_sh_example() {
-    let coeffs = project_sh();
-    reconstruct_sh(&coeffs);
+    let l = 3;
+    let nsamples = 10000;
+    let coeffs = project_sh(l, nsamples);
+    reconstruct_sh(&coeffs, l);
 }
 
 fn main() {

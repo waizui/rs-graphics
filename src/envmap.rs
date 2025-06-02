@@ -166,6 +166,7 @@ pub fn calc_integral_over_grayscale(grayscale: &[Rgb], w: usize, h: usize) -> Re
     sum
 }
 
+/// d: xyz at sphere surface
 pub fn unitsphere2envmap(d: &[f32; 3]) -> [Real; 2] {
     let x = d[0].abs();
     let y = d[1].abs();
