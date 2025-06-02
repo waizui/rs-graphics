@@ -174,7 +174,7 @@ fn draw_sh() {
 
         if let Some((hit, isphere)) = ray_cast_spheres(&campos, &view, (iw, ih), (w, h), &spheres) {
             let sphere = &spheres[isphere];
-            let hit_pos = vec3::axpy::<f32>(hit.t, &hit.ray.o, &hit.ray.d);
+            let hit_pos = vec3::axpy::<f32>(hit.t, &hit.ray.d, &hit.ray.o);
             let coord = worldpos2sphere(&hit_pos, sphere);
             let theta = coord[1];
             let phi = coord[2];
@@ -273,7 +273,7 @@ fn project_sh() {
         let ih = i_pix / w;
 
         if let Some((hit, _)) = ray_cast_spheres(&campos, &view, (iw, ih), (w, h), &spheres) {
-            let hit_pos = vec3::axpy::<f32>(hit.t, &hit.ray.o, &hit.ray.d);
+            let hit_pos = vec3::axpy::<f32>(hit.t, &hit.ray.d, &hit.ray.o);
             let coord = worldpos2sphere(&hit_pos, &spheres[0]);
             let theta = coord[1];
             let phi = coord[2];
