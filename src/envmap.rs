@@ -10,10 +10,14 @@ pub fn roundi(f: Real) -> i32 {
     (f + 0.5) as i32
 }
 
+/// t:texel, ext: extent
+/// texel coordinates([0,1]^2) to pixel coordinates ([w,h])
 pub fn tex2pixel(t: Real, ext: usize) -> usize {
     roundi(t * ((ext - 1) as Real) - 0.5) as usize
 }
 
+/// p: index of pixel, ext: extent
+/// pixel coordinates ([w,h]) to texel coordinates([0,1]^2)
 pub fn pixel2tex(p: usize, ext: usize) -> Real {
     if ext != 1 {
         return p as Real / (ext - 1) as Real;
@@ -22,6 +26,7 @@ pub fn pixel2tex(p: usize, ext: usize) -> Real {
     0.
 }
 
+/// pixel coordinates ([w,h]) to texel coordinates ([0,1]^2)
 pub fn pixel2texpair(x: usize, y: usize, w: usize, h: usize) -> [Real; 2] {
     let u = pixel2tex(x, w);
     let v = pixel2tex(y, h);

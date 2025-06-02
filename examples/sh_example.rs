@@ -155,7 +155,7 @@ fn ray_cast_spheres(
     rs_sampler::geo::sphere::ray_cast_shperes(iwih, (0., 0.), img_shape, 60., &v2w, spheres)
 }
 
-fn draw_sh() {
+fn draw_sh_shperes() {
     use image::Pixel;
 
     let w = 512;
@@ -249,12 +249,59 @@ fn gen_sh_samples(nsamples: usize, l: i32) -> Vec<SHSample> {
     samples
 }
 
-fn project_sh() {
+fn light(v: &[f32; 3], img: &[Rgb], shape: (usize, usize)) -> [f32; 3] {
+    use rs_sampler::envmap::*;
+    let uv = unitsphere2envmap(v);
+
+    let (w, h) = shape;
+    let iw = tex2pixel(uv[0], w);
+    let ih = tex2pixel(uv[1], h);
+
+    let idx = ih * w + iw;
+    img[idx].0
+}
+
+fn project_sh() -> Vec<[f32; 3]> {
     use image::Pixel;
+    use itertools::Itertools;
+    use rs_sampler::pfm::PFM;
 
     let nsamples = 128;
     let l = 3;
     let sh_samples = gen_sh_samples(nsamples, l);
+
+    let pfm = PFM::read_from("asset/envmap.pfm").unwrap();
+    let envrgb = pfm
+        .data
+        .chunks(pfm.channels)
+        .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
+        .collect_vec();
+
+    let mut coeff = vec![[0f32; 3]; (l * l) as usize];
+
+    // calculate coefficient ci
+    let ci_task = |ic: usize, coeff: &mut [f32; 3]| {
+        let mut acc = [0f32; 3];
+        for sh_sample in sh_samples.iter().take(nsamples) {
+            let sh = sh_sample.coeff[ic];
+            let light = light(&sh_sample.xyz, &envrgb, (pfm.w, pfm.h));
+            acc = acc.add(&light.scale(sh));
+        }
+
+        acc = acc.scale(4f32 * PI / nsamples as f32);
+        *coeff = acc;
+    };
+
+    coeff
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(ic, coeff)| ci_task(ic, coeff));
+
+    coeff
+}
+
+fn reconstruct_sh(coeffs: &[[f32; 3]]) {
+    use image::Pixel;
 
     let w = 512;
     let h = 512;
@@ -278,18 +325,9 @@ fn project_sh() {
             let theta = coord[1];
             let phi = coord[2];
 
-            pix.0 = [phi.cos().abs(); 3];
-            for sh_sample in &sh_samples {
-                let sh_theta = sh_sample.sph[1];
-                if (sh_theta.abs() - theta.abs()).abs() > 1e-2 {
-                    continue;
-                }
+            //TODO: reconstruct
 
-                let sh_phi = sh_sample.sph[2];
-                if (sh_phi.abs() - phi.abs()).abs() < 1e-2 {
-                    pix.0 = [1f32, 0f32, 0f32];
-                }
-            }
+            pix.0 = [phi.cos().abs(); 3];
         };
     };
 
@@ -298,15 +336,17 @@ fn project_sh() {
         .for_each(|(i_pix, pix)| task(i_pix, pix));
 
     use image::codecs::hdr::HdrEncoder;
-    let file_ms = std::fs::File::create("target/sh_example_projection.hdr").unwrap();
+    let file_ms = std::fs::File::create("target/sh_example_reconstruct.hdr").unwrap();
     let _ = HdrEncoder::new(file_ms).encode(&img, w, h);
+}
+
+fn draw_sh_example() {
+    let coeffs = project_sh();
+    reconstruct_sh(&coeffs);
 }
 
 fn main() {
     draw_legendre_poly();
-    draw_sh();
-    project_sh();
+    draw_sh_shperes();
+    draw_sh_example();
 }
-
-#[test]
-fn test() {}
