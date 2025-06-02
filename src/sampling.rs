@@ -1,5 +1,3 @@
-use del_geo_core::vec3::Vec3;
-
 type Real = f32;
 const PI: Real = std::f32::consts::PI;
 

@@ -1,14 +1,9 @@
 use del_geo_core::vec3::{self, Vec3};
 use rayon::prelude::*;
-use rs_sampler::cam;
+use rs_sampler::{cam, geo::sphere::*, ray::ray::Hit};
 use std::f32::consts::PI;
 
 type Rgb = image::Rgb<f32>;
-
-struct Sphere {
-    cnt: [f32; 3],
-    r: f32,
-}
 
 /// y-up, z-forward
 fn xyz2spherical(xyz: &[f32; 3]) -> [f32; 3] {
@@ -125,8 +120,9 @@ fn draw_legendre_poly() {
 }
 
 /// return (sphere,l,m)
-fn gen_spheres(l: i32) -> Vec<(Sphere, (i32, i32))> {
-    let mut spheres: Vec<(Sphere, (i32, i32))> = Vec::new();
+fn gen_spheres_lm(l: i32) -> (Vec<Sphere>, Vec<(i32, i32)>) {
+    let mut spheres: Vec<Sphere> = Vec::new();
+    let mut lm: Vec<(i32, i32)> = Vec::new();
     let ext = 3;
     for il in 0..l {
         for im in -il..il + 1 {
@@ -137,10 +133,26 @@ fn gen_spheres(l: i32) -> Vec<(Sphere, (i32, i32))> {
                 r: 1f32,
             };
 
-            spheres.push((s, (il, im)));
+            spheres.push(s);
+            lm.push((il, im));
         }
     }
-    spheres
+    (spheres, lm)
+}
+
+fn ray_cast_spheres(
+    campos: &[f32; 3],
+    view_dir: &[f32; 3],
+    iwih: (usize, usize),
+    img_shape: (usize, usize),
+    spheres: &[Sphere],
+) -> Option<(Hit, usize)> {
+    let mut v2w = cam::matrix_v2w(view_dir).1;
+    // concat translation
+    v2w[3 * 4] = campos[0];
+    v2w[1 + 3 * 4] = campos[1];
+    v2w[2 + 3 * 4] = campos[2];
+    rs_sampler::geo::sphere::ray_cast_shperes(iwih, (0., 0.), img_shape, 60., &v2w, spheres)
 }
 
 fn draw_sh() {
@@ -151,58 +163,31 @@ fn draw_sh() {
     let mut img = vec![*Rgb::from_slice(&[0.5; 3]); w * h];
 
     let l = 4; //sh order
-    let spheres = gen_spheres(l);
+    let (spheres, lm) = gen_spheres_lm(l);
 
     let campos = [0., 0., 18.];
     let view = [0., 0., -1.];
-    let mut v2w = cam::matrix_v2w(&view).1;
-    // concat translation
-    v2w[0 + 3 * 4] = campos[0];
-    v2w[1 + 3 * 4] = campos[1];
-    v2w[2 + 3 * 4] = campos[2];
 
     let task = |i_pix: usize, pix: &mut Rgb| {
         let iw = i_pix % w;
         let ih = i_pix / w;
-        let (ray_org, ray_dir) = cam::gen_ray((iw, ih), (0., 0.), (w, h), 60., &v2w);
 
-        let (t, i_sphere) = {
-            let mut t = f32::INFINITY;
-            let mut i_sphere = 0;
-            for (i, sphere) in spheres.iter().enumerate() {
-                if let Some(t_hit) = del_geo_nalgebra::sphere::intersection_ray(
-                    &nalgebra::Vector3::<f32>::from(sphere.0.cnt),
-                    sphere.0.r,
-                    &nalgebra::Vector3::<f32>::from(ray_org),
-                    &nalgebra::Vector3::<f32>::from(ray_dir),
-                ) {
-                    if t_hit < t {
-                        t = t_hit;
-                        i_sphere = i;
-                    }
-                }
+        if let Some((hit, isphere)) = ray_cast_spheres(&campos, &view, (iw, ih), (w, h), &spheres) {
+            let sphere = &spheres[isphere];
+            let hit_pos = vec3::axpy::<f32>(hit.t, &hit.ray.o, &hit.ray.d);
+            let coord = worldpos2sphere(&hit_pos, sphere);
+            let theta = coord[1];
+            let phi = coord[2];
+
+            let lm = &lm[isphere];
+            let v = sh_real(lm.0, lm.1, theta, phi);
+
+            if v > 0f32 {
+                pix.0 = [0f32, v, 0f32];
+            } else {
+                pix.0 = [-v, 0f32, 0f32];
             }
-
-            (t, i_sphere)
         };
-
-        if t == f32::INFINITY {
-            return;
-        }
-
-        let sphere = &spheres[i_sphere];
-        let hit_pos = vec3::axpy::<f32>(t, &ray_dir, &ray_org);
-        let coord = worldpos2sphere(&hit_pos, &sphere.0);
-        let theta = coord[1];
-        let phi = coord[2];
-
-        let v = sh_real(sphere.1 .0, sphere.1 .1, theta, phi);
-
-        if v > 0f32 {
-            pix.0 = [0f32, v, 0f32];
-        } else {
-            pix.0 = [-v, 0f32, 0f32];
-        }
     };
 
     img.par_iter_mut()
@@ -275,32 +260,21 @@ fn project_sh() {
     let h = 512;
     let mut img = vec![*Rgb::from_slice(&[0.; 3]); w * h];
 
-    let sphere = Sphere {
+    let spheres = [Sphere {
         cnt: [0f32; 3],
         r: 1f32,
-    };
+    }];
 
     let campos = [0., 0., 3.];
     let view = [0., 0., -1.];
-    let mut v2w = cam::matrix_v2w(&view).1;
-    // concat translation
-    v2w[0 + 3 * 4] = campos[0];
-    v2w[1 + 3 * 4] = campos[1];
-    v2w[2 + 3 * 4] = campos[2];
 
     let task = |i_pix: usize, pix: &mut Rgb| {
         let iw = i_pix % w;
         let ih = i_pix / w;
-        let (ray_org, ray_dir) = cam::gen_ray((iw, ih), (0., 0.), (w, h), 60., &v2w);
 
-        if let Some(t) = del_geo_nalgebra::sphere::intersection_ray(
-            &nalgebra::Vector3::<f32>::from(sphere.cnt),
-            sphere.r,
-            &nalgebra::Vector3::<f32>::from(ray_org),
-            &nalgebra::Vector3::<f32>::from(ray_dir),
-        ) {
-            let hit_pos = vec3::axpy::<f32>(t, &ray_dir, &ray_org);
-            let coord = worldpos2sphere(&hit_pos, &sphere);
+        if let Some((hit, _)) = ray_cast_spheres(&campos, &view, (iw, ih), (w, h), &spheres) {
+            let hit_pos = vec3::axpy::<f32>(hit.t, &hit.ray.o, &hit.ray.d);
+            let coord = worldpos2sphere(&hit_pos, &spheres[0]);
             let theta = coord[1];
             let phi = coord[2];
 

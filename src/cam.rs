@@ -129,6 +129,7 @@ pub fn matrix_w2v(pos: &[Real; 3], view: &[Real; 3]) -> ([Real; 3], [Real; 16]) 
     (up, world2view)
 }
 
+/// return (up vector, v2w matrix)
 pub fn matrix_v2w(view: &[Real; 3]) -> ([Real; 3], [Real; 16]) {
     let forward = &mut vec3::normalize(view);
     let mut up = [0., 1., 0.];

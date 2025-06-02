@@ -11,3 +11,5 @@ pub mod cam;
 pub mod mat4;
 pub mod sampling;
 pub mod vec3;
+pub mod geo;
+pub mod ray;
