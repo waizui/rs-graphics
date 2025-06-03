@@ -31,8 +31,8 @@ fn P(l: i32, m: i32, x: f32) -> f32 {
     if m > 0 {
         let sqrtfactor = ((1f32 - x) * (1f32 + x)).sqrt();
         let mut fact = 1f32;
-        for _ in 1..m + 1 {
-            pmm *= -fact * sqrtfactor;
+        for _ in 0..m {
+            pmm *= (-fact) * sqrtfactor;
             fact += 2f32;
         }
     }
@@ -71,13 +71,13 @@ fn factorial(x: i32) -> i32 {
 
 #[allow(non_snake_case)]
 fn K(l: i32, m: i32) -> f32 {
-    let mabs = m.abs();
     let fac0 = (2f32 * l as f32 + 1f32) / (4f32 * PI);
-    let fac1 = factorial(l - mabs) as f32 / factorial(l + mabs) as f32;
+    let fac1 = factorial(l - m) as f32 / factorial(l + m) as f32;
     let res = fac0 * fac1;
     res.sqrt()
 }
 
+/// l [0,N], m [-l,l]
 /// real part of spherical harmonics
 fn sh_real(l: i32, m: i32, theta: f32, phi: f32) -> f32 {
     if m == 0 {
@@ -249,23 +249,27 @@ fn gen_sh_samples(nsamples: usize, l: i32) -> Vec<SHSample> {
     samples
 }
 
+/// v: unit vector
 fn light(v: &[f32; 3], img: &[Rgb], shape: (usize, usize)) -> [f32; 3] {
-    // use rs_sampler::envmap::*;
-    // let uv = unitsphere2envmap(v);
-    //
-    // let (w, h) = shape;
-    // let iw = tex2pixel(uv[0], w);
-    // let ih = tex2pixel(uv[1], h);
-    //
-    // let idx = ih * w + iw;
-    // img[idx].0
+    use rs_sampler::envmap::*;
+    let uv = unitsphere2envmap(v);
 
-    // debug
-    let v = (5. * v[1].cos() - 4.).max(0.01)
-        + ((-4. * (v[1] - PI).sin()) * (v[2] - 2.5).cos() - 3.).max(0.01);
+    let (w, h) = shape;
+    let iw = tex2pixel(uv[0], w);
+    let ih = tex2pixel(uv[1], h);
+
+    let idx = ih * w + iw;
+    let c = img[idx].0;
+    let gray = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    [gray; 3]
+}
+
+/// sph: spherical coordinate
+fn spot_light(sph: &[f32; 3]) -> [f32; 3] {
+    let v = (5. * sph[1].cos() - 4.).max(0.00)
+        + ((-4. * (sph[1] - PI).sin()) * (sph[2] - 2.5).cos() - 3.).max(0.00);
 
     [v; 3]
-    // debug
 }
 
 fn project_sh(l: i32, nsamples: usize) -> Vec<[f32; 3]> {
@@ -282,15 +286,15 @@ fn project_sh(l: i32, nsamples: usize) -> Vec<[f32; 3]> {
         .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
         .collect_vec();
 
-    let mut coeff = vec![[0f32; 3]; ((l + 1) * (l + 1)) as usize];
+    let mut coeffs = vec![[0f32; 3]; ((l + 1) * (l + 1)) as usize];
 
     // calculate coefficient ci
     let ci_task = |ic: usize, coeff: &mut [f32; 3]| {
         let mut acc = [0f32; 3];
         for sh_sample in sh_samples.iter().take(nsamples) {
             let sh = sh_sample.coeff[ic];
-            // let light = light(&sh_sample.xyz, &envrgb, (pfm.w, pfm.h));
-            let light = light(&sh_sample.sph, &envrgb, (pfm.w, pfm.h));
+            let light = light(&sh_sample.xyz, &envrgb, (pfm.w, pfm.h));
+            // let light = spot_light(&sh_sample.sph);
             acc = acc.add(&light.scale(sh));
         }
 
@@ -298,12 +302,22 @@ fn project_sh(l: i32, nsamples: usize) -> Vec<[f32; 3]> {
         *coeff = acc;
     };
 
-    coeff
+    coeffs
         .par_iter_mut()
         .enumerate()
         .for_each(|(ic, coeff)| ci_task(ic, coeff));
 
-    coeff
+    // debug
+    for il in 0..l + 1 {
+        for im in -il..il + 1 {
+            let i = il * (il + 1) + im;
+            print!("{} ", coeffs[i as usize][0]);
+        }
+        println!();
+    }
+    // debug
+
+    coeffs
 }
 
 fn reconstruct_sh(coeffs: &[[f32; 3]], l: i32) {
@@ -311,18 +325,15 @@ fn reconstruct_sh(coeffs: &[[f32; 3]], l: i32) {
 
     let w = 512;
     let h = 512;
-    let mut img = vec![*Rgb::from_slice(&[0.; 3]); w * h];
+    let mut img = vec![*Rgb::from_slice(&[0.01; 3]); w * h * 2];
 
     let spheres = [Sphere {
         cnt: [0f32; 3],
         r: 1f32,
     }];
 
-    // let campos = [0., 0., 3.];
-    // let view = [0., 0., -1.];
-
-    let campos = [0., 3., -3.];
-    let view = [0., -1., 1.];
+    let campos = [0., 2., -3.];
+    let view = spheres[0].cnt.sub(&campos);
 
     // debug
     use itertools::Itertools;
@@ -335,9 +346,15 @@ fn reconstruct_sh(coeffs: &[[f32; 3]], l: i32) {
         .collect_vec();
     // debug
 
-    let task = |i_pix: usize, pix: &mut Rgb| {
-        let iw = i_pix % w;
-        let ih = i_pix / w;
+    let task = |ipix: usize, pix: &mut Rgb| {
+        let (iw, ih) = {
+            let mut ipix = ipix;
+            if ipix >= w * w {
+                ipix -= w * w;
+            }
+
+            (ipix % w, ipix / w)
+        };
 
         if let Some((hit, _)) = ray_cast_spheres(&campos, &view, (iw, ih), (w, h), &spheres) {
             let hit_pos = vec3::axpy::<f32>(hit.t, &hit.ray.d, &hit.ray.o);
@@ -346,37 +363,32 @@ fn reconstruct_sh(coeffs: &[[f32; 3]], l: i32) {
             let phi = coord[2];
 
             let mut res = [0f32; 3];
-            for il in 0..l + 1 {
-                for im in -il..il + 1 {
-                    let sh = sh_real(il, im, theta, phi);
-                    let ic = (il * (il + 1) + im) as usize;
-                    let coeff = coeffs[ic];
-                    res = res.add(&coeff.scale(sh));
+
+            if ipix < w * w {
+                for il in 0..l + 1 {
+                    for im in -il..il + 1 {
+                        let sh = sh_real(il, im, theta, phi);
+                        let ic = (il * (il + 1) + im) as usize;
+                        let coeff = coeffs[ic];
+                        res = res.add(&coeff.scale(sh));
+                    }
                 }
+            } else {
+                let d = hit_pos.sub(&spheres[0].cnt);
+                res = light(&d, &envrgb, (pfm.w, pfm.h));
             }
 
-            // dbg!(theta * 180f32 / PI);
-            // dbg!(phi * 180f32 / PI);
-            // dbg!(coeffs);
-
             pix.0 = res;
-
-            // debug
-            // let d = hit_pos.sub(&spheres[0].cnt);
-            // pix.0 = light(&d, &envrgb, (pfm.w, pfm.h));
-
-            // pix.0 = light(&coord, &envrgb, (pfm.w, pfm.h));
-            // debug
         };
     };
 
     img.par_iter_mut()
         .enumerate()
-        .for_each(|(i_pix, pix)| task(i_pix, pix));
+        .for_each(|(ipix, pix)| task(ipix, pix));
 
     use image::codecs::hdr::HdrEncoder;
     let file_ms = std::fs::File::create("target/sh_example_reconstruct.hdr").unwrap();
-    let _ = HdrEncoder::new(file_ms).encode(&img, w, h);
+    let _ = HdrEncoder::new(file_ms).encode(&img, w, h * 2);
 }
 
 fn draw_sh_example() {
