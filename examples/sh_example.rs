@@ -148,7 +148,7 @@ fn ray_cast_spheres(
     rs_sampler::geo::sphere::ray_cast_shperes(iwih, (0., 0.), img_shape, 60., &v2w, spheres)
 }
 
-fn draw_sh_shperes() {
+fn draw_sh_spheres() {
     use image::Pixel;
 
     let w = 512;
@@ -430,6 +430,6 @@ fn draw_sh_example() {
 
 fn main() {
     draw_legendre_poly();
-    draw_sh_shperes();
+    draw_sh_spheres();
     draw_sh_example();
 }
