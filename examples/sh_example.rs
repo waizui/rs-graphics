@@ -25,7 +25,7 @@ fn worldpos2sphere(pos: &[f32; 3], sphere: &Sphere) -> [f32; 3] {
 /// evaluate Associated Legendre Polynomial P(l,m) at x, using three properties
 #[allow(non_snake_case)]
 fn P(l: i32, m: i32, x: f32) -> f32 {
-    assert!(l >= m.abs());
+    assert!(m >= 0);
     let mut pmm = 1f32;
     // evaluate  P(m,m) from P(0,0)
     if m > 0 {
@@ -215,7 +215,7 @@ fn gen_sh_samples(nsamples: usize, l: i32) -> Vec<SHSample> {
     ];
 
     let task = |isample: usize, sample: &mut SHSample| {
-        // generate quasi-random samples
+        // quasi-random samples
         let rx: f32 = radical_inverse(isample, 2);
         let ry: f32 = radical_inverse(isample, 3);
         let xyz = square2unitsphere(&[rx, ry]);
@@ -252,10 +252,13 @@ fn light(xyz: &[f32; 3], img: &[Rgb], shape: (usize, usize)) -> [f32; 3] {
     let ih = tex2pixel(uv[1], h);
 
     let idx = ih * w + iw;
-    img[idx].0
-    // let c = img[idx].0;
-    // let gray = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
-    // [gray; 3]
+    // hdr to sdr, using hdr will cause sharp edges
+    let exposure = 0.8;
+    let gamma = 2.2;
+    img[idx]
+        .0
+        .map(|c| c * exposure)
+        .map(|c| (c / (1. + c).powf(1. / gamma)).clamp(0., 1.))
 }
 
 /// xyz: unit vector
@@ -278,10 +281,10 @@ where
     let ci_task = |ic: usize, coeff: &mut [f32; 3]| {
         let mut acc = [0f32; 3];
         for sh_sample in sh_samples.iter().take(nsamples) {
-            let sh = sh_sample.coeff[ic];
+            let coeff = sh_sample.coeff[ic];
             // light from environment
             let light = fr(&sh_sample.xyz);
-            acc = acc.add(&light.scale(sh));
+            acc = acc.add(&light.scale(coeff));
         }
 
         acc = acc.scale(4f32 * PI / nsamples as f32);
