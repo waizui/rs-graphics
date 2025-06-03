@@ -59,14 +59,7 @@ fn factorial(x: i32) -> i32 {
     if x == 0 {
         return 1;
     }
-    let mut acc = 1;
-    let mut n = x;
-    while n > 0 {
-        acc *= n;
-        n -= 1;
-    }
-
-    acc
+    (1..x + 1).product()
 }
 
 #[allow(non_snake_case)]
