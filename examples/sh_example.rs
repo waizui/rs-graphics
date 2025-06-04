@@ -1,6 +1,11 @@
 use del_geo_core::vec3::{self, Vec3};
 use rayon::prelude::*;
-use rs_sampler::{cam, geo::sphere::*, ray::ray::Hit};
+use rs_sampler::{
+    cam,
+    geo::sphere::*,
+    img::{operation::stitch_hor_mult, Image},
+    ray::ray::Hit,
+};
 use std::f32::consts::PI;
 
 type Rgb = image::Rgb<f32>;
@@ -405,7 +410,7 @@ fn draw_sh_example() {
     let w = 512;
     let h = 512;
 
-    let draw = |l: i32, fr: &(dyn Fn(&[f32; 3]) -> [f32; 3] + Sync)| -> Vec<Rgb> {
+    let draw = |l: i32, fr: &(dyn Fn(&[f32; 3]) -> [f32; 3] + Sync)| -> Image<image::Rgb<f32>> {
         //draw reconstructed light
         let mut img0 = vec![*Rgb::from_slice(&[0.01; 3]); w * h];
         let coeffs = project_sh(l, nsamples, fr);
@@ -415,21 +420,34 @@ fn draw_sh_example() {
         let mut img1 = vec![*Rgb::from_slice(&[0.01; 3]); w * h];
         draw_fr(&mut img1, (w, h), fr, &campos);
 
-        [img0, img1].concat()
+        Image {
+            shape: (w, h * 2),
+            data: [img0, img1].concat(),
+        }
     };
 
-    for l in [2, 3, 6, 10, 25] {
-        // envmap
-        let img0 = draw(l, &fr_light);
+    let img = {
+        let mut imgs: Vec<Image<Rgb>> = Vec::new();
 
-        // spot light
-        let img1 = draw(l, &fr_spot_light);
+        for l in [2, 3, 6, 10, 25] {
+            // envmap
+            let img0 = draw(l, &fr_light);
+            // spot light
+            let img1 = draw(l, &fr_spot_light);
+            // stitch vertically
+            let img = Image {
+                shape: (img0.shape.0, img0.shape.1 * 2),
+                data: [img0.data, img1.data].concat(),
+            };
+            imgs.push(img);
+        }
 
-        let img = [img0, img1].concat();
-        use image::codecs::hdr::HdrEncoder;
-        let file_ms = std::fs::File::create(format!("target/sh_example_rec_{}.hdr", l)).unwrap();
-        let _ = HdrEncoder::new(file_ms).encode(&img, w, h * 4);
-    }
+        stitch_hor_mult(&imgs, *Rgb::from_slice(&[0f32; 3]))
+    };
+
+    use image::codecs::hdr::HdrEncoder;
+    let file_ms = std::fs::File::create("target/sh_example_reconstruct.hdr").unwrap();
+    let _ = HdrEncoder::new(file_ms).encode(&img.data, img.shape.0, img.shape.1);
 }
 
 fn main() {

@@ -13,3 +13,4 @@ pub mod sampling;
 pub mod vec3;
 pub mod geo;
 pub mod ray;
+pub mod img;

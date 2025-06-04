@@ -1,25 +1,33 @@
-# rs-sampler
+# rs-graphics
 
-**256 Sampling resuts of samplers, lower dimension = 1st dimension, higher dimension = 64th dimension.**
+rs-graphics is a project that implements computer graphics alogrithms and tools.
 
-## Sobol sampler
 
-**No randomization**
+## Samplers
+
+lower dimension = 1st dimension, higher dimension = 64th dimension.
+
+### Sobol sampler
+
+No randomization
 ![sobol](./docs/sobol_256_norandom.png)
 
-**With Digit Permutaion randomization**
+With Digit Permutaion randomization
 ![sobol](./docs/sobol_256_permute.png)
 
-## Halton sampler
+### Halton sampler
 
-**No randomization**
+No randomization
 ![halton](./docs/halton_256_norandom.png)
 
-**With Digit Permutaion randomization**
+With Digit Permutaion randomization
 ![halton](./docs/halton_256_permute.png)
 
 
-
-## Sampling environment light
+## Environment light sampling 
 
 ![light](./docs/sampling_env.png)
+
+## Spherical Harmonics
+
+![SH](./docs/sh.png)
