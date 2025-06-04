@@ -296,17 +296,18 @@ where
         .enumerate()
         .for_each(|(ic, coeff)| ci_task(ic, coeff));
 
-    // debug
-    println!("sh coefficients l={}:", l);
-    for il in 0..l + 1 {
-        for im in -il..il + 1 {
-            let i = il * (il + 1) + im;
-            print!("{},", coeffs[i as usize][0]);
+    #[cfg(debug_assertions)]
+    {
+        println!("sh coefficients l={}:", l);
+        for il in 0..l + 1 {
+            for im in -il..il + 1 {
+                let i = il * (il + 1) + im;
+                print!("{},", coeffs[i as usize][0]);
+            }
+            println!();
         }
         println!();
     }
-    println!();
-    // debug
 
     coeffs
 }
@@ -417,7 +418,7 @@ fn draw_sh_example() {
         [img0, img1].concat()
     };
 
-    for l in 2..7 {
+    for l in [2, 3, 6, 10, 25] {
         // envmap
         let img0 = draw(l, &fr_light);
 
