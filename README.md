@@ -1,6 +1,6 @@
 # rs-graphics
 
-rs-graphics is a project that implements computer graphics alogrithms and tools.
+rs-graphics is a project that implements computer graphics alogrithms and tools using rust.
 
 
 ## Samplers
