@@ -55,17 +55,17 @@ fn P(l: i32, m: i32, x: f32) -> f32 {
     pll
 }
 
-fn factorial(x: i32) -> i32 {
+fn factorial(x: i32) -> f32 {
     if x == 0 {
-        return 1;
+        return 1f32;
     }
-    (1..x + 1).product()
+    (1..x + 1).fold(1., |acc, x| acc * x as f32)
 }
 
 #[allow(non_snake_case)]
 fn K(l: i32, m: i32) -> f32 {
     let fac0 = (2f32 * l as f32 + 1f32) / (4f32 * PI);
-    let fac1 = factorial(l - m) as f32 / factorial(l + m) as f32;
+    let fac1 = factorial(l - m) / factorial(l + m);
     let res = fac0 * fac1;
     res.sqrt()
 }
