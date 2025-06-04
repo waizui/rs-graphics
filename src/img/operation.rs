@@ -47,7 +47,7 @@ where
     T: Copy + Send + Sync,
 {
     let mut res = Image {
-        shape: (1, 1),
+        shape: (0, 0),
         data: vec![defval],
     };
 
