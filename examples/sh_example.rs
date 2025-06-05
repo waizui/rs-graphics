@@ -239,6 +239,7 @@ fn gen_sh_samples(nsamples: usize, l: i32) -> Vec<SHSample> {
         }
     };
 
+    // parallelly processing
     samples
         .par_iter_mut()
         .enumerate()
@@ -292,10 +293,13 @@ where
             acc = acc.add(&light.scale(coeff));
         }
 
+        // Monte Calor method, need to divide sample count
+        // and probability density function(pdf), which is 1/(4*pi) of sampling a sphere
         acc = acc.scale(4f32 * PI / nsamples as f32);
         *coeff = acc;
     };
 
+    // parallelly processing
     coeffs
         .par_iter_mut()
         .enumerate()
@@ -317,6 +321,7 @@ where
     coeffs
 }
 
+
 fn reconstruct_sh(
     img: &mut [Rgb],
     img_shape: (usize, usize),
@@ -335,6 +340,7 @@ fn reconstruct_sh(
 
     let task = |ipix: usize, pix: &mut Rgb| {
         let (iw, ih) = (ipix % w, ipix / w);
+        // rebuild environment light on sphere's surface
         if let Some((hit, _)) = ray_cast_spheres(campos, &view, (iw, ih), (w, h), &spheres) {
             let hit_pos = vec3::axpy::<f32>(hit.t, &hit.ray.d, &hit.ray.o);
             let coord = worldpos2sphere(&hit_pos, &spheres[0]);
@@ -348,6 +354,7 @@ fn reconstruct_sh(
                     let sh = sh_real(il, im, theta, phi);
                     let ic = (il * (il + 1) + im) as usize;
                     let coeff = coeffs[ic];
+                    // sum all products of projected coefficient multipled by respective SH basis
                     res = res.add(&coeff.scale(sh));
                 }
             }
@@ -355,7 +362,8 @@ fn reconstruct_sh(
             pix.0 = res;
         };
     };
-
+    
+    // parallelly processing
     img.par_iter_mut()
         .enumerate()
         .for_each(|(ipix, pix)| task(ipix, pix));
