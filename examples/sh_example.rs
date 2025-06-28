@@ -3,8 +3,8 @@ use rayon::prelude::*;
 use rs_sampler::{cam, geo::sphere::*, img::prelude::*, ray::raycast::Hit};
 use std::f32::consts::PI;
 
-type Rgb = image::Rgb<f32>;
-type HDRRgbImage = rs_sampler::img::std_img::RgbImage<f32>;
+type Rgb = RgbPixel<f32>;
+type Image = RgbImage<f32>;
 
 /// y-up, z-forward
 fn xyz2spherical(xyz: &[f32; 3]) -> [f32; 3] {
@@ -413,7 +413,7 @@ fn draw_sh_example() {
     let w = 512;
     let h = 512;
 
-    let draw = |l: i32, fr: &(dyn Fn(&[f32; 3]) -> [f32; 3] + Sync)| -> HDRRgbImage {
+    let draw = |l: i32, fr: &(dyn Fn(&[f32; 3]) -> [f32; 3] + Sync)| -> Image {
         //draw reconstructed light
         let mut img0 = vec![*Rgb::from_slice(&[0.01; 3]); w * h];
         let coeffs = project_sh(l, nsamples, fr);
@@ -423,11 +423,11 @@ fn draw_sh_example() {
         let mut img1 = vec![*Rgb::from_slice(&[0.01; 3]); w * h];
         draw_fr(&mut img1, (w, h), fr, &campos);
 
-        HDRRgbImage::new((w, h * 2), [img0, img1].concat()).unwrap()
+        Image::new((w, h * 2), [img0, img1].concat()).unwrap()
     };
 
     let img = {
-        let mut imgs: Vec<HDRRgbImage> = Vec::new();
+        let mut imgs: Vec<Image> = Vec::new();
 
         for l in [2, 3, 6, 10, 25] {
             // envmap
@@ -435,7 +435,7 @@ fn draw_sh_example() {
             // spot light
             let img1 = draw(l, &fr_spot_light);
             // stitch vertically
-            let img = HDRRgbImage::new(
+            let img = Image::new(
                 (img0.shape().0, img0.shape().1 * 2),
                 [img0.pixels(), img1.pixels()].concat(),
             )
@@ -443,7 +443,7 @@ fn draw_sh_example() {
             imgs.push(img);
         }
 
-        HDRRgbImage::stitch_hor_mult(&imgs, *Rgb::from_slice(&[0f32; 3]))
+        Image::stitch_hor_mult(&imgs, *Rgb::from_slice(&[0f32; 3]))
     }
     .unwrap();
 
