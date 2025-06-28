@@ -4,7 +4,7 @@ use rs_sampler::{
     cam,
     geo::sphere::*,
     img::{operation::stitch_hor_mult, Image},
-    ray::ray::Hit,
+    ray::raycast::Hit,
 };
 use std::f32::consts::PI;
 

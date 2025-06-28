@@ -1,1 +1,1 @@
-pub mod ray;
+pub mod raycast;

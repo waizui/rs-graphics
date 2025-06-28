@@ -1,6 +1,6 @@
 use core::f32;
 
-use crate::ray::ray::{Hit, Ray, RayCast};
+use crate::ray::raycast::{Hit, Ray, RayCast};
 
 pub struct Sphere {
     pub cnt: [f32; 3],
