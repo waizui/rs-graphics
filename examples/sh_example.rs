@@ -1,14 +1,10 @@
 use del_geo_core::vec3::{self, Vec3};
 use rayon::prelude::*;
-use rs_sampler::{
-    cam,
-    geo::sphere::*,
-    img::{operation::stitch_hor_mult, Image},
-    ray::raycast::Hit,
-};
+use rs_sampler::{cam, geo::sphere::*, img::prelude::*, ray::raycast::Hit};
 use std::f32::consts::PI;
 
 type Rgb = image::Rgb<f32>;
+type HDRRgbImage = rs_sampler::img::std_img::RgbImage<f32>;
 
 /// y-up, z-forward
 fn xyz2spherical(xyz: &[f32; 3]) -> [f32; 3] {
@@ -321,7 +317,6 @@ where
     coeffs
 }
 
-
 fn reconstruct_sh(
     img: &mut [Rgb],
     img_shape: (usize, usize),
@@ -362,7 +357,7 @@ fn reconstruct_sh(
             pix.0 = res;
         };
     };
-    
+
     // parallelly processing
     img.par_iter_mut()
         .enumerate()
@@ -418,7 +413,7 @@ fn draw_sh_example() {
     let w = 512;
     let h = 512;
 
-    let draw = |l: i32, fr: &(dyn Fn(&[f32; 3]) -> [f32; 3] + Sync)| -> Image<image::Rgb<f32>> {
+    let draw = |l: i32, fr: &(dyn Fn(&[f32; 3]) -> [f32; 3] + Sync)| -> HDRRgbImage {
         //draw reconstructed light
         let mut img0 = vec![*Rgb::from_slice(&[0.01; 3]); w * h];
         let coeffs = project_sh(l, nsamples, fr);
@@ -428,14 +423,11 @@ fn draw_sh_example() {
         let mut img1 = vec![*Rgb::from_slice(&[0.01; 3]); w * h];
         draw_fr(&mut img1, (w, h), fr, &campos);
 
-        Image {
-            shape: (w, h * 2),
-            data: [img0, img1].concat(),
-        }
+        HDRRgbImage::new((w, h * 2), [img0, img1].concat()).unwrap()
     };
 
     let img = {
-        let mut imgs: Vec<Image<Rgb>> = Vec::new();
+        let mut imgs: Vec<HDRRgbImage> = Vec::new();
 
         for l in [2, 3, 6, 10, 25] {
             // envmap
@@ -443,19 +435,21 @@ fn draw_sh_example() {
             // spot light
             let img1 = draw(l, &fr_spot_light);
             // stitch vertically
-            let img = Image {
-                shape: (img0.shape.0, img0.shape.1 * 2),
-                data: [img0.data, img1.data].concat(),
-            };
+            let img = HDRRgbImage::new(
+                (img0.shape().0, img0.shape().1 * 2),
+                [img0.pixels(), img1.pixels()].concat(),
+            )
+            .unwrap();
             imgs.push(img);
         }
 
-        stitch_hor_mult(&imgs, *Rgb::from_slice(&[0f32; 3]))
-    };
+        HDRRgbImage::stitch_hor_mult(&imgs, *Rgb::from_slice(&[0f32; 3]))
+    }
+    .unwrap();
 
     use image::codecs::hdr::HdrEncoder;
     let file_ms = std::fs::File::create("target/sh_example_reconstruct.hdr").unwrap();
-    let _ = HdrEncoder::new(file_ms).encode(&img.data, img.shape.0, img.shape.1);
+    let _ = HdrEncoder::new(file_ms).encode(img.pixels(), img.shape().0, img.shape().1);
 }
 
 fn main() {
