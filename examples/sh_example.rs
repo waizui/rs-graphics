@@ -1,6 +1,6 @@
 use del_geo_core::vec3::{self, Vec3};
 use rayon::prelude::*;
-use rs_sampler::{cam, geo::sphere::*, img::prelude::*, ray::raycast::Hit};
+use rs_graphics::{cam, geo::sphere::*, img::prelude::*, ray::raycast::Hit};
 use std::f32::consts::PI;
 
 type Rgb = RgbPixel<f32>;
@@ -146,7 +146,7 @@ fn ray_cast_spheres(
     v2w[3 * 4] = campos[0];
     v2w[1 + 3 * 4] = campos[1];
     v2w[2 + 3 * 4] = campos[2];
-    rs_sampler::geo::sphere::ray_cast_shperes(iwih, (0., 0.), img_shape, 60., &v2w, spheres)
+    rs_graphics::geo::sphere::ray_cast_shperes(iwih, (0., 0.), img_shape, 60., &v2w, spheres)
 }
 
 fn draw_sh_spheres() {
@@ -203,8 +203,8 @@ struct SHSample {
 /// nsamples: specify how many samples will be generated
 /// return random sh samples  across sphere surface
 fn gen_sh_samples(nsamples: usize, l: i32) -> Vec<SHSample> {
-    use rs_sampler::haltonsampler::radical_inverse;
-    use rs_sampler::sampling::*;
+    use rs_graphics::haltonsampler::radical_inverse;
+    use rs_graphics::sampling::*;
 
     let mut samples = vec![
         SHSample {
@@ -246,7 +246,7 @@ fn gen_sh_samples(nsamples: usize, l: i32) -> Vec<SHSample> {
 
 /// xyz: unit vector
 fn light(xyz: &[f32; 3], img: &[Rgb], shape: (usize, usize)) -> [f32; 3] {
-    use rs_sampler::envmap::*;
+    use rs_graphics::envmap::*;
     let uv = unitsphere2envmap(xyz);
 
     let (w, h) = shape;
@@ -394,7 +394,7 @@ where
 fn draw_sh_example() {
     use image::Pixel;
     use itertools::Itertools;
-    use rs_sampler::pfm::PFM;
+    use rs_graphics::pfm::PFM;
 
     let pfm = PFM::read_from("asset/envmap.pfm").unwrap();
     let envrgb = pfm

@@ -213,7 +213,7 @@ fn test_sphere_mapping() {
             dir[j] = (i + 1) as Real;
         }
 
-        del_geo_core::vec3::normalize(&mut dir);
+        dir = del_geo_core::vec3::normalize(&dir);
 
         let uv = unitsphere2envmap(&dir);
         let udir = envmap2unitsphere(&uv);

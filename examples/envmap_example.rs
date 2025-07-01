@@ -1,6 +1,6 @@
 //! light sampling octahadral environment map
-use rs_sampler::pfm::PFM;
-use rs_sampler::{
+use rs_graphics::{
+    pfm::PFM,
     envmap::envmap2unitsphere, envmap::pixel2texpair, envmap::tex2pixel,
     haltonsampler::HaltonSampler, sampler::Sampler,
 };
@@ -25,10 +25,10 @@ fn main() {
         .map(|chunk| *Rgb::from_slice(&[chunk[0], chunk[1], chunk[2]]))
         .collect_vec();
 
-    let grayscale = rs_sampler::envmap::calc_grayscale(&rgbdata, w, h);
-    let itgr = rs_sampler::envmap::calc_integral_over_grayscale(&grayscale, w, h);
+    let grayscale = rs_graphics::envmap::calc_grayscale(&rgbdata, w, h);
+    let itgr = rs_graphics::envmap::calc_integral_over_grayscale(&grayscale, w, h);
     let (marginal_map, conditional_map) =
-        rs_sampler::envmap::calc_inverse_cdf_map(&grayscale, itgr, w, h);
+        rs_graphics::envmap::calc_inverse_cdf_map(&grayscale, itgr, w, h);
 
     let mut img = vec![*Rgb::from_slice(&[0.; 3]); w * h];
 

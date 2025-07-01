@@ -1,5 +1,5 @@
 //! Depth of field technique
-use rs_sampler::{cam, haltonsampler};
+use rs_graphics::{cam, haltonsampler};
 
 type Real = f32;
 type Rgb = image::Rgb<Real>;

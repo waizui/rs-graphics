@@ -1,6 +1,6 @@
-use rs_sampler::util::{export_csv, CSVEntery};
+use rs_graphics::util::{export_csv, CSVEntery};
 
-use rs_sampler::{
+use rs_graphics::{
     self, haltonsampler::HaltonSampler, sampler::RandomStrategy, sampler::Sampler,
     sobolsampler::SobolSampler,
 };
